@@ -2,6 +2,7 @@ node_modules
 .next
 .next-dev
 .netlify
+.agents
 data
 .env*
 !.env.example
