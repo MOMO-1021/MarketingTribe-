@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  background: #f3f0e8;
+}
+
+body {
+  min-height: 100vh;
+  background: #f3f0e8;
+  color: #1c1916;
+}
+
+::selection {
+  background: #f0d7c6;
+}
+
+:focus-visible {
+  outline: 2px solid #9a3412;
+  outline-offset: 2px;
+}
+
+button,
+[type="submit"] {
+  cursor: pointer;
+}
+
+input[type="checkbox"] {
+  accent-color: #1c1916;
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.2rem;
+  flex: none;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center rounded-full bg-ink px-3.5 py-1.5 text-sm font-medium text-paper transition hover:bg-ink/85;
+  }
+
+  .btn-large {
+    @apply inline-flex items-center justify-center rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-paper transition hover:bg-ink/85;
+  }
+
+  .field {
+    @apply w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink outline-none placeholder:text-mute/70 focus:border-ink/40;
+  }
+
+  .label {
+    @apply mb-1.5 block text-sm text-mute;
+  }
+}
