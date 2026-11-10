@@ -3,9 +3,9 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { Community } from "@/lib/db";
+import type { CommunitySummary } from "@/lib/db";
 
-export function CircleNav({ circles }: { circles: Community[] }) {
+export function CircleNav({ circles }: { circles: CommunitySummary[] }) {
   const path = usePathname();
 
   return (
@@ -14,7 +14,7 @@ export function CircleNav({ circles }: { circles: Community[] }) {
         All circles
       </NavLink>
       {circles.map((circle) => (
-        <NavLink key={circle.id} href={`/c/${circle.slug}`} active={path === `/c/${circle.slug}`}>
+        <NavLink key={circle.slug} href={`/c/${circle.slug}`} active={path === `/c/${circle.slug}`}>
           {circle.name}
         </NavLink>
       ))}

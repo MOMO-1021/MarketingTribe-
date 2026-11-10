@@ -7,9 +7,8 @@ import { getCurrentUser } from "@/lib/session";
 export const dynamic = "force-dynamic";
 
 export default async function LandingPage() {
-  const user = await getCurrentUser();
+  const [user, stats] = await Promise.all([getCurrentUser(), getStats()]);
   if (user) redirect("/home");
-  const stats = await getStats();
 
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-6 py-20">

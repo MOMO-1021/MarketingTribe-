@@ -30,7 +30,7 @@ export default async function NewThreadPage({
           <span className="label">Circle</span>
           <select name="community" defaultValue={selected} className="field">
             {circles.map((circle) => (
-              <option key={circle.id} value={circle.slug}>
+              <option key={circle.slug} value={circle.slug}>
                 {circle.name}
               </option>
             ))}

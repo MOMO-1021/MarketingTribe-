@@ -19,6 +19,8 @@ export type Community = {
   description: string;
 };
 
+export type CommunitySummary = Omit<Community, "id">;
+
 export type PostCard = {
   id: number;
   title: string;
@@ -217,12 +219,44 @@ async function initializeSchema() {
   }
 }
 
+async function databaseIsInitialized() {
+  const db = getDb();
+  const schema = await db.query<{
+    meta: boolean;
+    users: boolean;
+    communities: boolean;
+    posts: boolean;
+    comments: boolean;
+    votes: boolean;
+    posts_created_index: boolean;
+    posts_community_index: boolean;
+    comments_post_index: boolean;
+  }>(`
+    SELECT
+      to_regclass('public.meta') IS NOT NULL AS meta,
+      to_regclass('public.users') IS NOT NULL AS users,
+      to_regclass('public.communities') IS NOT NULL AS communities,
+      to_regclass('public.posts') IS NOT NULL AS posts,
+      to_regclass('public.comments') IS NOT NULL AS comments,
+      to_regclass('public.votes') IS NOT NULL AS votes,
+      to_regclass('public.idx_posts_created') IS NOT NULL AS posts_created_index,
+      to_regclass('public.idx_posts_community') IS NOT NULL AS posts_community_index,
+      to_regclass('public.idx_comments_post') IS NOT NULL AS comments_post_index
+  `);
+  if (!Object.values(schema.rows[0]).every(Boolean)) return false;
+
+  const seeded = await db.query(`SELECT 1 FROM meta WHERE key = 'seeded'`);
+  return seeded.rowCount !== 0;
+}
+
 export async function ensureDatabase() {
   if (!globalForDb.marketingTribeSchema) {
-    globalForDb.marketingTribeSchema = initializeSchema().catch((error: unknown) => {
-      globalForDb.marketingTribeSchema = undefined;
-      throw error;
-    });
+    globalForDb.marketingTribeSchema = databaseIsInitialized()
+      .then((initialized) => (initialized ? undefined : initializeSchema()))
+      .catch((error: unknown) => {
+        globalForDb.marketingTribeSchema = undefined;
+        throw error;
+      });
   }
   await globalForDb.marketingTribeSchema;
 }
@@ -295,16 +329,8 @@ export async function updateUser(
   );
 }
 
-export async function listCommunities(): Promise<Community[]> {
-  const result = await query<Community>(
-    `SELECT id, slug, name, description FROM communities ORDER BY sort_order ASC`,
-  );
-  return result.rows.map((row) => ({
-    id: Number(row.id),
-    slug: String(row.slug),
-    name: String(row.name),
-    description: String(row.description),
-  }));
+export function listCommunities(): CommunitySummary[] {
+  return CIRCLES.map(([slug, name, description]) => ({ slug, name, description }));
 }
 
 export async function getCommunity(slug: string): Promise<Community | null> {

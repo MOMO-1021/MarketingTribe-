@@ -1,3 +1,5 @@
+import { LoadingState } from "@/components/loading-state";
+
 export default function Loading() {
-  return <p className="py-8 text-sm text-mute">Loading…</p>;
+  return <LoadingState message="Loading the room…" feed />;
 }
