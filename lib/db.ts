@@ -1,5 +1,10 @@
 import { randomBytes } from "crypto";
-import { Pool, type QueryResultRow } from "@neondatabase/serverless";
+import {
+  neon,
+  Pool,
+  type NeonQueryFunction,
+  type QueryResultRow,
+} from "@neondatabase/serverless";
 import { hashSync } from "bcryptjs";
 import { CIRCLES, HOST_EMAIL } from "./constants";
 
@@ -80,20 +85,32 @@ type ReplyRow = QueryResultRow & {
 
 type DbGlobal = typeof globalThis & {
   marketingTribePool?: Pool;
+  marketingTribeHttp?: NeonQueryFunction<false, true>;
   marketingTribeSchema?: Promise<void>;
 };
 
 const globalForDb = globalThis as DbGlobal;
 
-export function getDb() {
+function getConnectionString() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     throw new Error("DATABASE_URL is missing. Configure a Neon PostgreSQL connection string.");
   }
+  return connectionString;
+}
+
+export function getDb() {
   if (!globalForDb.marketingTribePool) {
-    globalForDb.marketingTribePool = new Pool({ connectionString, max: 5 });
+    globalForDb.marketingTribePool = new Pool({ connectionString: getConnectionString(), max: 5 });
   }
   return globalForDb.marketingTribePool;
+}
+
+function getHttpDb() {
+  if (!globalForDb.marketingTribeHttp) {
+    globalForDb.marketingTribeHttp = neon(getConnectionString(), { fullResults: true });
+  }
+  return globalForDb.marketingTribeHttp;
 }
 
 const WELCOME_TITLE = "Read this once, then start a real thread";
@@ -220,18 +237,8 @@ async function initializeSchema() {
 }
 
 async function databaseIsInitialized() {
-  const db = getDb();
-  const schema = await db.query<{
-    meta: boolean;
-    users: boolean;
-    communities: boolean;
-    posts: boolean;
-    comments: boolean;
-    votes: boolean;
-    posts_created_index: boolean;
-    posts_community_index: boolean;
-    comments_post_index: boolean;
-  }>(`
+  const db = getHttpDb();
+  const schema = await db.query(`
     SELECT
       to_regclass('public.meta') IS NOT NULL AS meta,
       to_regclass('public.users') IS NOT NULL AS users,
@@ -263,7 +270,8 @@ export async function ensureDatabase() {
 
 async function query<T extends QueryResultRow>(text: string, values: unknown[] = []) {
   await ensureDatabase();
-  return getDb().query<T>(text, values);
+  const result = await getHttpDb().query(text, values);
+  return { ...result, rows: result.rows as T[] };
 }
 
 function toPublicUser(row: UserRow): PublicUser {

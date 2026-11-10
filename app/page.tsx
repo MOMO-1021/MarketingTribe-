@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { Wordmark } from "@/components/wordmark";
 import { getStats } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
@@ -7,7 +8,7 @@ import { getCurrentUser } from "@/lib/session";
 export const dynamic = "force-dynamic";
 
 export default async function LandingPage() {
-  const [user, stats] = await Promise.all([getCurrentUser(), getStats()]);
+  const user = await getCurrentUser();
   if (user) redirect("/home");
 
   return (
@@ -31,15 +32,30 @@ export default async function LandingPage() {
           Sign in
         </Link>
       </div>
-      <p className="mt-8 text-sm text-mute">
-        {stats.members === 0
-          ? "The room is open. Be the first member."
-          : `${stats.members} ${stats.members === 1 ? "member is" : "members are"} already inside.`}
-      </p>
+      <Suspense
+        fallback={
+          <p className="mt-8 text-sm text-mute" aria-busy="true">
+            Checking how many members are inside…
+          </p>
+        }
+      >
+        <MemberCount />
+      </Suspense>
       <div className="mt-10 border-t border-line pt-6 text-sm leading-relaxed text-mute">
         Circles for performance, content, SEO, social, brand, D2C, B2B, influencer work, and careers.
         Bring a specific question, or something you already tried.
       </div>
     </main>
+  );
+}
+
+async function MemberCount() {
+  const stats = await getStats();
+  return (
+    <p className="mt-8 text-sm text-mute">
+      {stats.members === 0
+        ? "The room is open. Be the first member."
+        : `${stats.members} ${stats.members === 1 ? "member is" : "members are"} already inside.`}
+    </p>
   );
 }
