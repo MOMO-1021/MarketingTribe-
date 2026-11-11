@@ -1,9 +1,17 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { PostCard } from "@/lib/db";
 import { excerpt, formatTime, plural } from "@/lib/format";
+import { useCircleFeedStore } from "./circle-feed-provider";
 import { VoteButton } from "./vote-button";
 
 export function PostList({ posts, empty }: { posts: PostCard[]; empty: string }) {
+  const { navigate, prefetchFeed } = useCircleFeedStore();
+  const pathname = usePathname();
+  const isFeedPage = pathname === "/home" || pathname.startsWith("/c/");
+
   if (posts.length === 0) {
     return <p className="border-t border-line py-10 text-sm text-mute">{empty}</p>;
   }
@@ -23,7 +31,32 @@ export function PostList({ posts, empty }: { posts: PostCard[]; empty: string })
               <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-mute">{excerpt(post.body)}</p>
             ) : null}
             <p className="mt-2 text-xs text-mute">
-              <Link href={`/c/${post.community_slug}`} className="hover:text-ink">
+              <Link
+                href={`/c/${post.community_slug}`}
+                prefetch={isFeedPage ? false : undefined}
+                onMouseEnter={() => {
+                  if (isFeedPage) prefetchFeed(`/c/${post.community_slug}`);
+                }}
+                onFocus={() => {
+                  if (isFeedPage) prefetchFeed(`/c/${post.community_slug}`);
+                }}
+                onClick={(event) => {
+                  if (
+                    !isFeedPage ||
+                    event.defaultPrevented ||
+                    event.button !== 0 ||
+                    event.metaKey ||
+                    event.ctrlKey ||
+                    event.shiftKey ||
+                    event.altKey
+                  ) {
+                    return;
+                  }
+                  event.preventDefault();
+                  navigate(`/c/${post.community_slug}`);
+                }}
+                className="hover:text-ink"
+              >
                 {post.community_name}
               </Link>
               <span> · </span>

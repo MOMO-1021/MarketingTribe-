@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import { cache } from "react";
-import { getUserById, type PublicUser } from "./db";
+import { getUserById, type SessionUser } from "./db";
 
 const COOKIE = "adda_session";
 const MAX_AGE = 60 * 60 * 24 * 30;
@@ -60,7 +60,7 @@ export async function clearSession() {
   jar.delete(COOKIE);
 }
 
-export const getCurrentUser = cache(async function getCurrentUser(): Promise<PublicUser | null> {
+export const getCurrentUser = cache(async function getCurrentUser(): Promise<SessionUser | null> {
   const jar = await cookies();
   const token = jar.get(COOKIE)?.value;
   if (!token) return null;

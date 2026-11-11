@@ -1,20 +1,35 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Link, { useLinkStatus } from "next/link";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { CommunitySummary } from "@/lib/db";
+import { useCircleFeedStore } from "./circle-feed-provider";
 
 export function CircleNav({ circles }: { circles: CommunitySummary[] }) {
   const path = usePathname();
+  const { navigate, prefetchFeed } = useCircleFeedStore();
+  const isFeedPage = path === "/home" || path.startsWith("/c/");
+  const navigateFeed = isFeedPage ? navigate : undefined;
 
   return (
     <nav className="flex gap-2 overflow-x-auto pb-1 md:flex-col md:gap-0.5 md:overflow-visible md:pb-0">
-      <NavLink href="/home" active={path === "/home"}>
+      <NavLink
+        href="/home"
+        active={path === "/home"}
+        navigate={navigateFeed}
+        prefetchFeed={prefetchFeed}
+      >
         All circles
       </NavLink>
       {circles.map((circle) => (
-        <NavLink key={circle.slug} href={`/c/${circle.slug}`} active={path === `/c/${circle.slug}`}>
+        <NavLink
+          key={circle.slug}
+          href={`/c/${circle.slug}`}
+          active={path === `/c/${circle.slug}`}
+          navigate={navigateFeed}
+          prefetchFeed={prefetchFeed}
+        >
           {circle.name}
         </NavLink>
       ))}
@@ -30,14 +45,36 @@ function NavLink({
   href,
   active,
   children,
+  navigate,
+  prefetchFeed,
 }: {
   href: string;
   active: boolean;
   children: ReactNode;
+  navigate?: (href: string) => void;
+  prefetchFeed?: (href: string) => void;
 }) {
   return (
     <Link
       href={href}
+      prefetch={navigate ? false : undefined}
+      onMouseEnter={() => prefetchFeed?.(href)}
+      onFocus={() => prefetchFeed?.(href)}
+      onClick={(event) => {
+        if (
+          !navigate ||
+          event.defaultPrevented ||
+          event.button !== 0 ||
+          event.metaKey ||
+          event.ctrlKey ||
+          event.shiftKey ||
+          event.altKey
+        ) {
+          return;
+        }
+        event.preventDefault();
+        navigate(href);
+      }}
       className={`shrink-0 rounded-full border px-3 py-1 text-sm md:rounded-md md:border-0 md:px-2 md:py-1.5 ${
         active
           ? "border-ink bg-ink text-paper md:bg-transparent md:text-ink md:font-medium"
@@ -45,18 +82,6 @@ function NavLink({
       }`}
     >
       <span>{children}</span>
-      <LinkPending />
     </Link>
   );
-}
-
-function LinkPending() {
-  const { pending } = useLinkStatus();
-
-  return pending ? (
-    <span
-      aria-label="Loading"
-      className="inline-block size-3 animate-spin rounded-full border-2 border-current border-r-transparent motion-reduce:animate-none"
-    />
-  ) : null;
 }

@@ -13,6 +13,7 @@ import {
   emailTaken,
   getPost,
   getUserByEmail,
+  markWelcomeRead,
   toggleVote as flipVote,
   updatePost as savePost,
   updateReply as saveReply,
@@ -31,6 +32,7 @@ function keepLines(value: FormDataEntryValue | null, max: number) {
 async function requireUser() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (user.welcome_read_at === null) redirect("/welcome");
   return user;
 }
 
@@ -62,7 +64,7 @@ export async function signup(formData: FormData) {
     city,
   });
   await setSession(id);
-  redirect("/home");
+  redirect("/welcome");
 }
 
 export async function login(formData: FormData) {
@@ -73,6 +75,14 @@ export async function login(formData: FormData) {
     redirect("/login?e=credentials");
   }
   await setSession(user.id);
+  redirect(user.welcome_read_at === null ? "/welcome" : "/home");
+}
+
+export async function acknowledgeWelcome() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  await markWelcomeRead(user.id);
+  revalidatePath("/", "layout");
   redirect("/home");
 }
 
@@ -123,7 +133,8 @@ export async function editThread(formData: FormData) {
 
 export async function vote(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user) return false;
+  if (!user) return "login";
+  if (user.welcome_read_at === null) return "welcome";
   const postId = Number(formData.get("postId"));
   if (!Number.isInteger(postId) || postId <= 0) throw new Error("Invalid post ID");
   await flipVote(postId, user.id);
@@ -132,7 +143,7 @@ export async function vote(formData: FormData) {
   if (/^\/(?:home|c\/[a-z0-9-]+|p\/\d+|u\/\d+)$/.test(returnPath)) {
     revalidatePath(returnPath);
   }
-  return true;
+  return "saved";
 }
 
 export async function reply(formData: FormData) {

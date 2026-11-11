@@ -35,9 +35,9 @@ export function VoteButton({
         setError(false);
         try {
           const saved = await vote(formData);
-          if (!saved) {
+          if (saved !== "saved") {
             setVoteState(previous);
-            router.push("/login");
+            router.push(saved === "welcome" ? "/welcome" : "/login");
           }
         } catch {
           setVoteState(previous);

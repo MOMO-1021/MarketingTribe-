@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { FeedBar } from "@/components/feed-bar";
-import { PostList } from "@/components/post-list";
+import { CircleFeed } from "@/components/circle-feed";
 import { getCommunity, listPosts } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
 
@@ -34,16 +32,21 @@ export default async function CirclePage({
   ]);
   if (!circle) notFound();
 
+  const initialHref = sort === "top" ? `/c/${circle.slug}?sort=top` : `/c/${circle.slug}`;
+
   return (
-    <div>
-      <FeedBar title={circle.name} description={circle.description} sort={sort} basePath={`/c/${circle.slug}`} />
-      <Link
-        href={`/new?c=${circle.slug}`}
-        className="mb-2 block rounded-lg border border-dashed border-line px-4 py-3 text-sm text-mute hover:border-ink/30 hover:text-ink"
-      >
-        Start a thread in {circle.name}…
-      </Link>
-      <PostList posts={posts} empty="Nothing in this circle yet." />
-    </div>
+    <CircleFeed
+      initialHref={initialHref}
+      initialFeed={{
+        title: circle.name,
+        description: circle.description,
+        sort,
+        basePath: `/c/${circle.slug}`,
+        createHref: `/new?c=${circle.slug}`,
+        createLabel: `Start a thread in ${circle.name}…`,
+        empty: "Nothing in this circle yet.",
+        posts,
+      }}
+    />
   );
 }
