@@ -469,7 +469,7 @@ const POST_SELECT = `
     c.name AS community_name,
     c.slug AS community_slug,
     (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id) AS comment_count,
-    (SELECT COALESCE(SUM(v.vote_value), 0) FROM votes v WHERE v.post_id = p.id) AS score,
+    (SELECT GREATEST(COALESCE(SUM(v.vote_value), 0), 0) FROM votes v WHERE v.post_id = p.id) AS score,
     COALESCE((SELECT v.vote_value FROM votes v WHERE v.post_id = p.id AND v.user_id = $1), 0) AS voted
   FROM posts p
   JOIN users u ON u.id = p.user_id
@@ -545,26 +545,40 @@ export async function deletePost(id: number, userId: number) {
   return result.rowCount !== 0;
 }
 
-export async function toggleVote(postId: number, userId: number, direction: -1 | 1) {
-  await query(
-    `WITH removed AS (
-       DELETE FROM votes
-       WHERE post_id = $1 AND user_id = $2 AND vote_value = $3
-       RETURNING user_id
-     )
-     INSERT INTO votes (user_id, post_id, vote_value, created_at)
-     SELECT $2, $1, $3, $4 WHERE NOT EXISTS (SELECT 1 FROM removed)
-     ON CONFLICT (user_id, post_id) DO UPDATE
-     SET vote_value = EXCLUDED.vote_value, created_at = EXCLUDED.created_at`,
-    [postId, userId, direction, Date.now()],
+export async function setPostVote(postId: number, userId: number, voteValue: -1 | 0 | 1) {
+  if (voteValue === 0) {
+    await query(`DELETE FROM votes WHERE post_id = $1 AND user_id = $2`, [postId, userId]);
+  } else {
+    await query(
+      `INSERT INTO votes (user_id, post_id, vote_value, created_at)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (user_id, post_id) DO UPDATE
+       SET vote_value = EXCLUDED.vote_value, created_at = EXCLUDED.created_at`,
+      [userId, postId, voteValue, Date.now()],
+    );
+  }
+}
+
+export async function getPostVote(postId: number, userId: number) {
+  const result = await query<{ score: number | string; voted: number | string }>(
+    `SELECT
+       GREATEST(COALESCE(SUM(vote_value), 0), 0) AS score,
+       COALESCE(MAX(vote_value) FILTER (WHERE user_id = $2), 0) AS voted
+     FROM votes WHERE post_id = $1`,
+    [postId, userId],
   );
+  return {
+    score: Number(result.rows[0].score),
+    voted: Number(result.rows[0].voted) as -1 | 0 | 1,
+  };
 }
 
 export async function listReplies(postId: number, viewerId: number): Promise<Reply[]> {
   const result = await query<ReplyRow>(
     `SELECT cm.id, cm.post_id, cm.parent_id, cm.user_id, cm.body, cm.created_at,
             u.name AS author_name, u.city AS author_city,
-            COALESCE((SELECT SUM(rv.vote_value) FROM reply_votes rv WHERE rv.comment_id = cm.id), 0) AS score,
+            (SELECT GREATEST(COALESCE(SUM(rv.vote_value), 0), 0)
+             FROM reply_votes rv WHERE rv.comment_id = cm.id) AS score,
             COALESCE((SELECT rv.vote_value FROM reply_votes rv
                       WHERE rv.comment_id = cm.id AND rv.user_id = $2), 0) AS voted
      FROM comments cm
@@ -606,19 +620,32 @@ export async function createReply(
   return result.rowCount !== 0;
 }
 
-export async function toggleReplyVote(commentId: number, userId: number, direction: -1 | 1) {
-  await query(
-    `WITH removed AS (
-       DELETE FROM reply_votes
-       WHERE comment_id = $1 AND user_id = $2 AND vote_value = $3
-       RETURNING user_id
-     )
-     INSERT INTO reply_votes (comment_id, user_id, vote_value, created_at)
-     SELECT $1, $2, $3, $4 WHERE NOT EXISTS (SELECT 1 FROM removed)
-     ON CONFLICT (user_id, comment_id) DO UPDATE
-     SET vote_value = EXCLUDED.vote_value, created_at = EXCLUDED.created_at`,
-    [commentId, userId, direction, Date.now()],
+export async function setReplyVote(commentId: number, userId: number, voteValue: -1 | 0 | 1) {
+  if (voteValue === 0) {
+    await query(`DELETE FROM reply_votes WHERE comment_id = $1 AND user_id = $2`, [commentId, userId]);
+  } else {
+    await query(
+      `INSERT INTO reply_votes (comment_id, user_id, vote_value, created_at)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (user_id, comment_id) DO UPDATE
+       SET vote_value = EXCLUDED.vote_value, created_at = EXCLUDED.created_at`,
+      [commentId, userId, voteValue, Date.now()],
+    );
+  }
+}
+
+export async function getReplyVote(commentId: number, userId: number) {
+  const result = await query<{ score: number | string; voted: number | string }>(
+    `SELECT
+       GREATEST(COALESCE(SUM(vote_value), 0), 0) AS score,
+       COALESCE(MAX(vote_value) FILTER (WHERE user_id = $2), 0) AS voted
+     FROM reply_votes WHERE comment_id = $1`,
+    [commentId, userId],
   );
+  return {
+    score: Number(result.rows[0].score),
+    voted: Number(result.rows[0].voted) as -1 | 0 | 1,
+  };
 }
 
 export async function updateReply(id: number, postId: number, userId: number, body: string) {

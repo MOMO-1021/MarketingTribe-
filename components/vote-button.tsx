@@ -1,93 +1,134 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { useFormStatus } from "react-dom";
-import { vote } from "@/lib/actions";
+import { useEffect, useRef, useState } from "react";
 
 type VoteTarget =
   | { postId: number; replyId?: never }
   | { replyId: number; postId?: never };
+
+type VoteState = {
+  score: number;
+  voted: -1 | 0 | 1;
+};
 
 export function VoteButton({
   postId,
   replyId,
   score,
   voted,
-}: VoteTarget & {
-  score: number;
-  voted: -1 | 0 | 1;
-}) {
-  const pathname = usePathname();
-  const router = useRouter();
+}: VoteTarget & VoteState) {
   const [voteState, setVoteState] = useState({ score, voted });
   const [error, setError] = useState(false);
+  const stateRef = useRef(voteState);
+  const committedStateRef = useRef(voteState);
+  const pendingCountRef = useRef(0);
+  const queueRef = useRef(Promise.resolve());
 
   useEffect(() => {
-    setVoteState({ score, voted });
+    if (pendingCountRef.current === 0) {
+      const current = { score, voted };
+      stateRef.current = current;
+      committedStateRef.current = current;
+      setVoteState(current);
+    }
   }, [score, voted]);
 
+  function handleVote(direction: -1 | 1) {
+    const previous = stateRef.current;
+    const nextVoted: VoteState["voted"] = previous.voted === direction ? 0 : direction;
+    const optimistic = {
+      score: Math.max(0, previous.score - previous.voted + nextVoted),
+      voted: nextVoted,
+    };
+
+    stateRef.current = optimistic;
+    setVoteState(optimistic);
+    setError(false);
+    pendingCountRef.current += 1;
+
+    const operation = queueRef.current
+      .then(async () => {
+        const response = await fetch("/api/votes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            postId,
+            replyId,
+            voteValue: nextVoted,
+          }),
+        });
+        if (!response.ok) throw new Error("Vote request failed");
+
+        const result: unknown = await response.json();
+        if (
+          !result ||
+          typeof result !== "object" ||
+          !("score" in result) ||
+          !("voted" in result) ||
+          typeof result.score !== "number" ||
+          !Number.isFinite(result.score) ||
+          (result.voted !== -1 && result.voted !== 0 && result.voted !== 1)
+        ) {
+          throw new Error("Invalid vote response");
+        }
+        const saved: VoteState = { score: result.score, voted: result.voted };
+
+        committedStateRef.current = saved;
+        if (pendingCountRef.current === 1) {
+          stateRef.current = saved;
+          setVoteState(saved);
+        }
+      })
+      .catch(() => {
+        setError(true);
+        if (pendingCountRef.current === 1) {
+          stateRef.current = committedStateRef.current;
+          setVoteState(committedStateRef.current);
+        }
+      })
+      .finally(() => {
+        pendingCountRef.current -= 1;
+      });
+
+    queueRef.current = operation;
+  }
+
   return (
-    <form
-      action={async (formData) => {
-        const previous = voteState;
-        const direction = Number(formData.get("direction"));
-        if (direction !== -1 && direction !== 1) {
-          setError(true);
-          return;
-        }
-        const nextVoted: -1 | 0 | 1 = previous.voted === direction ? 0 : direction;
-        const next = {
-          score: previous.score - previous.voted + nextVoted,
-          voted: nextVoted,
-        };
-        setVoteState(next);
-        setError(false);
-        try {
-          const saved = await vote(formData);
-          if (saved !== "saved") {
-            setVoteState(previous);
-            router.push(saved === "welcome" ? "/welcome" : "/login");
-          }
-        } catch {
-          setVoteState(previous);
-          setError(true);
-        }
-      }}
-    >
-      {postId !== undefined ? <input type="hidden" name="postId" value={postId} /> : null}
-      {replyId !== undefined ? <input type="hidden" name="replyId" value={replyId} /> : null}
-      <input type="hidden" name="returnPath" value={pathname} />
+    <div>
       <div className="flex w-10 flex-col items-center">
-        <VoteSubmit direction={1} voted={voteState.voted} />
+        <VoteSubmit direction={1} voted={voteState.voted} onVote={handleVote} />
         <span className="py-0.5 text-xs tabular-nums">{voteState.score}</span>
-        <VoteSubmit direction={-1} voted={voteState.voted} />
+        <VoteSubmit direction={-1} voted={voteState.voted} onVote={handleVote} />
       </div>
       {error ? (
         <span role="alert" className="block text-center text-xs text-clay">
           Could not save your vote. Try again.
         </span>
       ) : null}
-    </form>
+    </div>
   );
 }
 
-function VoteSubmit({ direction, voted }: { direction: -1 | 1; voted: -1 | 0 | 1 }) {
-  const { pending } = useFormStatus();
+function VoteSubmit({
+  direction,
+  voted,
+  onVote,
+}: {
+  direction: -1 | 1;
+  voted: -1 | 0 | 1;
+  onVote: (direction: -1 | 1) => void;
+}) {
   const selected = voted === direction;
 
   return (
     <button
-      type="submit"
-      name="direction"
-      value={direction}
-      disabled={pending}
-      aria-busy={pending}
+      type="button"
       aria-pressed={selected}
       aria-label={`${selected ? "Remove " : ""}${direction === 1 ? "upvote" : "downvote"}`}
-      className={`rounded-md px-2 py-1 text-xs disabled:cursor-wait ${
+      className={`rounded-md px-2 py-1 text-xs ${
         selected ? "text-clay" : "text-mute hover:text-ink"
       }`}
+      onClick={() => onVote(direction)}
     >
       {direction === 1 ? "▲" : "▼"}
     </button>

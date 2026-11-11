@@ -14,8 +14,6 @@ import {
   getPost,
   getUserByEmail,
   markWelcomeRead,
-  toggleVote as flipVote,
-  toggleReplyVote as flipReplyVote,
   updatePost as savePost,
   updateReply as saveReply,
   updateUser,
@@ -130,29 +128,6 @@ export async function editThread(formData: FormData) {
   await savePost(postId, user.id, title, keepLines(formData.get("body"), 8000));
   revalidatePath("/", "layout");
   redirect(`/p/${postId}`);
-}
-
-export async function vote(formData: FormData) {
-  const user = await getCurrentUser();
-  if (!user) return "login";
-  if (user.welcome_read_at === null) return "welcome";
-  const postId = Number(formData.get("postId"));
-  const replyId = Number(formData.get("replyId"));
-  const direction = Number(formData.get("direction"));
-  if (direction !== -1 && direction !== 1) throw new Error("Invalid vote direction");
-  if (Number.isInteger(postId) && postId > 0) {
-    await flipVote(postId, user.id, direction);
-  } else if (Number.isInteger(replyId) && replyId > 0) {
-    await flipReplyVote(replyId, user.id, direction);
-  } else {
-    throw new Error("Invalid vote target");
-  }
-
-  const returnPath = String(formData.get("returnPath") ?? "");
-  if (/^\/(?:home|c\/[a-z0-9-]+|p\/\d+|u\/\d+)$/.test(returnPath)) {
-    revalidatePath(returnPath);
-  }
-  return "saved";
 }
 
 export async function reply(formData: FormData) {
