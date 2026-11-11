@@ -15,6 +15,7 @@ import {
   getUserByEmail,
   markWelcomeRead,
   toggleVote as flipVote,
+  toggleReplyVote as flipReplyVote,
   updatePost as savePost,
   updateReply as saveReply,
   updateUser,
@@ -136,8 +137,16 @@ export async function vote(formData: FormData) {
   if (!user) return "login";
   if (user.welcome_read_at === null) return "welcome";
   const postId = Number(formData.get("postId"));
-  if (!Number.isInteger(postId) || postId <= 0) throw new Error("Invalid post ID");
-  await flipVote(postId, user.id);
+  const replyId = Number(formData.get("replyId"));
+  const direction = Number(formData.get("direction"));
+  if (direction !== -1 && direction !== 1) throw new Error("Invalid vote direction");
+  if (Number.isInteger(postId) && postId > 0) {
+    await flipVote(postId, user.id, direction);
+  } else if (Number.isInteger(replyId) && replyId > 0) {
+    await flipReplyVote(replyId, user.id, direction);
+  } else {
+    throw new Error("Invalid vote target");
+  }
 
   const returnPath = String(formData.get("returnPath") ?? "");
   if (/^\/(?:home|c\/[a-z0-9-]+|p\/\d+|u\/\d+)$/.test(returnPath)) {
@@ -149,13 +158,20 @@ export async function vote(formData: FormData) {
 export async function reply(formData: FormData) {
   const user = await requireUser();
   const postId = Number(formData.get("postId"));
+  const parentReplyIdValue = formData.get("parentReplyId");
+  const parentReplyId = parentReplyIdValue ? Number(parentReplyIdValue) : null;
   const raw = String(formData.get("body") ?? "");
   const body = raw.replace(/\r\n/g, "\n").trim();
-  if (!Number.isInteger(postId) || postId <= 0) redirect("/home");
-  if (!body) redirect(`/p/${postId}?e=comment`);
-  if (body.length > 4000) redirect(`/p/${postId}?e=commentlong`);
-  const saved = await createReply(postId, user.id, body);
-  if (!saved) redirect("/home");
+  if (
+    !Number.isInteger(postId) ||
+    postId <= 0 ||
+    (parentReplyId !== null && (!Number.isInteger(parentReplyId) || parentReplyId <= 0))
+  ) redirect("/home");
+  const replyTarget = parentReplyId === null ? "" : `&replyTo=${parentReplyId}`;
+  if (!body) redirect(`/p/${postId}?e=comment${replyTarget}`);
+  if (body.length > 4000) redirect(`/p/${postId}?e=commentlong${replyTarget}`);
+  const saved = await createReply(postId, user.id, body, parentReplyId);
+  if (!saved) redirect(`/p/${postId}`);
   revalidatePath("/", "layout");
   redirect(`/p/${postId}`);
 }

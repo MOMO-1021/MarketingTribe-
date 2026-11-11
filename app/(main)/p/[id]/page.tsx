@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DeleteReply } from "@/components/delete-reply";
 import { DeleteThread } from "@/components/delete-thread";
-import { EditReply } from "@/components/edit-reply";
 import { EditThread } from "@/components/edit-thread";
 import { FormError } from "@/components/form-error";
+import { ReplyTree } from "@/components/reply-tree";
 import { SubmitButton } from "@/components/submit-button";
 import { VoteButton } from "@/components/vote-button";
 import { reply } from "@/lib/actions";
@@ -30,7 +29,13 @@ export default async function PostPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ e?: string; threadError?: string; replyError?: string; replyId?: string }>;
+  searchParams: Promise<{
+    e?: string;
+    threadError?: string;
+    replyError?: string;
+    replyId?: string;
+    replyTo?: string;
+  }>;
 }) {
   const user = await getCurrentUser();
   if (!user) return null;
@@ -39,8 +44,8 @@ export default async function PostPage({
   if (!Number.isInteger(id) || id <= 0) notFound();
   const post = await getPost(id, user.id);
   if (!post) notFound();
-  const replies = await listReplies(id);
-  const { e, threadError, replyError, replyId: errorReplyId } = await searchParams;
+  const replies = await listReplies(id, user.id);
+  const { e, threadError, replyError, replyId: errorReplyId, replyTo } = await searchParams;
 
   return (
     <article>
@@ -80,7 +85,7 @@ export default async function PostPage({
       <section className="mt-10">
         <h2 className="font-serif text-xl tracking-tight">{plural(replies.length, "reply", "replies")}</h2>
         <form action={reply} className="mt-4 space-y-3">
-          <FormError message={errorMessage(e)} />
+          {replyTo === undefined ? <FormError message={errorMessage(e)} /> : null}
           <input type="hidden" name="postId" value={post.id} />
           <textarea
             name="body"
@@ -94,35 +99,15 @@ export default async function PostPage({
             Reply
           </SubmitButton>
         </form>
-        <div className="mt-6 border-t border-line">
-          {replies.length === 0 ? (
-            <p className="py-6 text-sm text-mute">No replies yet.</p>
-          ) : (
-            replies.map((item) => (
-              <div key={item.id} className="border-b border-line py-4">
-                <p className="text-xs text-mute">
-                  <Link href={`/u/${item.user_id}`} className="hover:text-ink">
-                    {item.author_name}
-                  </Link>
-                  <span> · {item.author_city} · </span>
-                  <time dateTime={new Date(item.created_at).toISOString()}>{formatTime(item.created_at)}</time>
-                </p>
-                <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed">{item.body}</p>
-                {item.user_id === user.id ? (
-                  <div className="mt-2">
-                    <EditReply
-                      postId={post.id}
-                      replyId={item.id}
-                      body={item.body}
-                      error={errorReplyId === String(item.id) ? errorMessage(replyError) : undefined}
-                    />
-                    <DeleteReply postId={post.id} replyId={item.id} />
-                  </div>
-                ) : null}
-              </div>
-            ))
-          )}
-        </div>
+        <ReplyTree
+          postId={post.id}
+          replies={replies}
+          userId={user.id}
+          error={replyTo !== undefined ? errorMessage(e) : undefined}
+          replyTo={replyTo ? Number(replyTo) : undefined}
+          editReplyId={errorReplyId}
+          editError={errorMessage(replyError)}
+        />
       </section>
     </article>
   );

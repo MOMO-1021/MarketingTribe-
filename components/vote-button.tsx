@@ -5,14 +5,18 @@ import { usePathname, useRouter } from "next/navigation";
 import { useFormStatus } from "react-dom";
 import { vote } from "@/lib/actions";
 
+type VoteTarget =
+  | { postId: number; replyId?: never }
+  | { replyId: number; postId?: never };
+
 export function VoteButton({
   postId,
+  replyId,
   score,
   voted,
-}: {
-  postId: number;
+}: VoteTarget & {
   score: number;
-  voted: boolean;
+  voted: -1 | 0 | 1;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -27,9 +31,15 @@ export function VoteButton({
     <form
       action={async (formData) => {
         const previous = voteState;
+        const direction = Number(formData.get("direction"));
+        if (direction !== -1 && direction !== 1) {
+          setError(true);
+          return;
+        }
+        const nextVoted: -1 | 0 | 1 = previous.voted === direction ? 0 : direction;
         const next = {
-          score: previous.score + (previous.voted ? -1 : 1),
-          voted: !previous.voted,
+          score: previous.score - previous.voted + nextVoted,
+          voted: nextVoted,
         };
         setVoteState(next);
         setError(false);
@@ -45,9 +55,14 @@ export function VoteButton({
         }
       }}
     >
-      <input type="hidden" name="postId" value={postId} />
+      {postId !== undefined ? <input type="hidden" name="postId" value={postId} /> : null}
+      {replyId !== undefined ? <input type="hidden" name="replyId" value={replyId} /> : null}
       <input type="hidden" name="returnPath" value={pathname} />
-      <VoteSubmit score={voteState.score} voted={voteState.voted} />
+      <div className="flex w-10 flex-col items-center">
+        <VoteSubmit direction={1} voted={voteState.voted} />
+        <span className="py-0.5 text-xs tabular-nums">{voteState.score}</span>
+        <VoteSubmit direction={-1} voted={voteState.voted} />
+      </div>
       {error ? (
         <span role="alert" className="block text-center text-xs text-clay">
           Could not save your vote. Try again.
@@ -57,24 +72,24 @@ export function VoteButton({
   );
 }
 
-function VoteSubmit({ score, voted }: { score: number; voted: boolean }) {
+function VoteSubmit({ direction, voted }: { direction: -1 | 1; voted: -1 | 0 | 1 }) {
   const { pending } = useFormStatus();
+  const selected = voted === direction;
 
   return (
     <button
       type="submit"
+      name="direction"
+      value={direction}
       disabled={pending}
       aria-busy={pending}
-      aria-pressed={voted}
-      aria-label={voted ? "Remove upvote" : "Upvote"}
-      className={`flex w-10 flex-col items-center gap-0.5 rounded-md py-1 text-xs disabled:cursor-wait ${
-        voted ? "text-clay" : "text-mute hover:text-ink"
+      aria-pressed={selected}
+      aria-label={`${selected ? "Remove " : ""}${direction === 1 ? "upvote" : "downvote"}`}
+      className={`rounded-md px-2 py-1 text-xs disabled:cursor-wait ${
+        selected ? "text-clay" : "text-mute hover:text-ink"
       }`}
     >
-      <svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true">
-        <path d="M7 2 L12 10 H2 Z" fill="currentColor" />
-      </svg>
-      <span className="tabular-nums">{score}</span>
+      {direction === 1 ? "▲" : "▼"}
     </button>
   );
 }
