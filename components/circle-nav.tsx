@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import type { CommunitySummary } from "@/lib/db";
 
@@ -44,7 +44,19 @@ function NavLink({
           : "border-line text-mute hover:text-ink"
       }`}
     >
-      {children}
+      <span>{children}</span>
+      <LinkPending />
     </Link>
   );
+}
+
+function LinkPending() {
+  const { pending } = useLinkStatus();
+
+  return pending ? (
+    <span
+      aria-label="Loading"
+      className="inline-block size-3 animate-spin rounded-full border-2 border-current border-r-transparent motion-reduce:animate-none"
+    />
+  ) : null;
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { FormError } from "@/components/form-error";
+import { SubmitButton } from "@/components/submit-button";
 import { publishThread } from "@/lib/actions";
 import { errorMessage } from "@/lib/constants";
 import { listCommunities } from "@/lib/db";
@@ -44,9 +45,9 @@ export default async function NewThreadPage({
           <span className="label">Details</span>
           <textarea name="body" rows={8} maxLength={8000} className="field resize-y" placeholder="Optional, but specifics help." />
         </label>
-        <button type="submit" className="btn-large">
+        <SubmitButton className="btn-large" pendingLabel="Posting thread…">
           Post thread
-        </button>
+        </SubmitButton>
       </form>
     </div>
   );

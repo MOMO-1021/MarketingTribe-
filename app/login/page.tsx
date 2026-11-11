@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FormError } from "@/components/form-error";
+import { SubmitButton } from "@/components/submit-button";
 import { Wordmark } from "@/components/wordmark";
 import { login } from "@/lib/actions";
 import { errorMessage } from "@/lib/constants";
@@ -39,9 +40,9 @@ export default async function LoginPage({
             className="field"
           />
         </label>
-        <button type="submit" className="btn-large">
+        <SubmitButton className="btn-large" pendingLabel="Signing in…">
           Enter
-        </button>
+        </SubmitButton>
       </form>
       <p className="mt-6 text-sm text-mute">
         New here?{" "}

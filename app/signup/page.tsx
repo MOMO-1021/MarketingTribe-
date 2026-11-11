@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FormError } from "@/components/form-error";
+import { SubmitButton } from "@/components/submit-button";
 import { Wordmark } from "@/components/wordmark";
 import { signup } from "@/lib/actions";
 import { errorMessage, PRACTICES } from "@/lib/constants";
@@ -74,9 +75,9 @@ export default async function SignupPage({
           <input type="checkbox" name="confirm" required />
           <span>I do marketing work, and India is where I do it.</span>
         </label>
-        <button type="submit" className="btn-large">
+        <SubmitButton className="btn-large" pendingLabel="Creating account…">
           Join MarketingTribe
-        </button>
+        </SubmitButton>
       </form>
       <p className="mt-6 text-sm text-mute">
         Already have an account?{" "}

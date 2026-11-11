@@ -6,6 +6,7 @@ import { DeleteThread } from "@/components/delete-thread";
 import { EditReply } from "@/components/edit-reply";
 import { EditThread } from "@/components/edit-thread";
 import { FormError } from "@/components/form-error";
+import { SubmitButton } from "@/components/submit-button";
 import { VoteButton } from "@/components/vote-button";
 import { reply } from "@/lib/actions";
 import { errorMessage } from "@/lib/constants";
@@ -89,9 +90,9 @@ export default async function PostPage({
             placeholder="Add something useful…"
             className="field resize-y"
           />
-          <button type="submit" className="btn">
+          <SubmitButton className="btn" pendingLabel="Sending…">
             Reply
-          </button>
+          </SubmitButton>
         </form>
         <div className="mt-6 border-t border-line">
           {replies.length === 0 ? (

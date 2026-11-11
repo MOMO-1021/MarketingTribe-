@@ -11,7 +11,6 @@ import {
   deletePost as removePost,
   deleteReply as removeReply,
   emailTaken,
-  getCommunity,
   getPost,
   getUserByEmail,
   toggleVote as flipVote,
@@ -87,19 +86,18 @@ export async function publishThread(formData: FormData) {
   const slug = clean(formData.get("community"), 40);
   const title = clean(formData.get("title"), 200);
   const rawBody = String(formData.get("body") ?? "");
-  const circle = await getCommunity(slug);
   const back = `/new?c=${encodeURIComponent(slug)}`;
-  if (!circle) redirect("/new?e=community");
   if (title.length < 8 || title.length > 160) redirect(`${back}&e=title`);
   if (rawBody.trim().length > 8000) redirect(`${back}&e=body`);
   const body = keepLines(formData.get("body"), 8000);
 
   const id = await createPost({
     userId: user.id,
-    communityId: circle.id,
+    communitySlug: slug,
     title,
     body,
   });
+  if (id === null) redirect("/new?e=community");
   revalidatePath("/", "layout");
   redirect(`/p/${id}`);
 }
@@ -124,10 +122,17 @@ export async function editThread(formData: FormData) {
 }
 
 export async function vote(formData: FormData) {
-  const user = await requireUser();
+  const user = await getCurrentUser();
+  if (!user) return false;
   const postId = Number(formData.get("postId"));
-  if (Number.isInteger(postId) && postId > 0) await flipVote(postId, user.id);
-  revalidatePath("/", "layout");
+  if (!Number.isInteger(postId) || postId <= 0) throw new Error("Invalid post ID");
+  await flipVote(postId, user.id);
+
+  const returnPath = String(formData.get("returnPath") ?? "");
+  if (/^\/(?:home|c\/[a-z0-9-]+|p\/\d+|u\/\d+)$/.test(returnPath)) {
+    revalidatePath(returnPath);
+  }
+  return true;
 }
 
 export async function reply(formData: FormData) {
@@ -168,10 +173,13 @@ export async function removeThread(formData: FormData) {
   const user = await requireUser();
   const postId = Number(formData.get("postId"));
   if (!Number.isInteger(postId) || postId <= 0) redirect("/home");
-  const post = await getPost(postId, user.id);
-  if (!post) redirect("/home");
-  if (post.author_id !== user.id) redirect(`/p/${postId}?e=forbidden`);
-  await removePost(postId, user.id);
+  const removed = await removePost(postId, user.id);
+  if (!removed) {
+    const post = await getPost(postId, user.id);
+    if (!post) redirect("/home");
+    if (post.author_id !== user.id) redirect(`/p/${postId}?e=forbidden`);
+    redirect("/home");
+  }
   revalidatePath("/", "layout");
   redirect("/home");
 }

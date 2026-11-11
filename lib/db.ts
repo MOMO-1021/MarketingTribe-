@@ -433,16 +433,17 @@ export async function getPost(id: number, viewerId: number): Promise<PostCard | 
 
 export async function createPost(input: {
   userId: number;
-  communityId: number;
+  communitySlug: string;
   title: string;
   body: string;
 }) {
   const result = await query<{ id: string }>(
     `INSERT INTO posts (user_id, community_id, title, body, created_at)
-     VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-    [input.userId, input.communityId, input.title, input.body, Date.now()],
+     SELECT $1, id, $3, $4, $5 FROM communities WHERE slug = $2
+     RETURNING id`,
+    [input.userId, input.communitySlug, input.title, input.body, Date.now()],
   );
-  return Number(result.rows[0].id);
+  return result.rows[0] ? Number(result.rows[0].id) : null;
 }
 
 export async function updatePost(id: number, userId: number, title: string, body: string) {
@@ -459,16 +460,14 @@ export async function deletePost(id: number, userId: number) {
 }
 
 export async function toggleVote(postId: number, userId: number) {
-  const deleted = await query(
-    `DELETE FROM votes WHERE post_id = $1 AND user_id = $2 RETURNING user_id`,
-    [postId, userId],
-  );
-  if (deleted.rowCount) return;
   await query(
-    `INSERT INTO votes (user_id, post_id, created_at)
-     SELECT $1, id, $3 FROM posts WHERE id = $2
+    `WITH removed AS (
+       DELETE FROM votes WHERE post_id = $1 AND user_id = $2 RETURNING user_id
+     )
+     INSERT INTO votes (user_id, post_id, created_at)
+     SELECT $2, $1, $3 WHERE NOT EXISTS (SELECT 1 FROM removed)
      ON CONFLICT (user_id, post_id) DO NOTHING`,
-    [userId, postId, Date.now()],
+    [postId, userId, Date.now()],
   );
 }
 
