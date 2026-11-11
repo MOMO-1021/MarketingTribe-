@@ -5,6 +5,8 @@ import {
   type NeonQueryFunction,
   type QueryResultRow,
 } from "@neondatabase/serverless";
+import { unstable_cache } from "next/cache";
+import { cache } from "react";
 import { hashSync } from "bcryptjs";
 import { CIRCLES, HOST_EMAIL } from "./constants";
 
@@ -189,6 +191,7 @@ async function initializeSchema() {
   await db.query(
     `CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id, created_at)`,
   );
+  await db.query(`CREATE INDEX IF NOT EXISTS idx_votes_post ON votes(post_id)`);
 
   const client = await db.connect();
   try {
@@ -248,7 +251,8 @@ async function databaseIsInitialized() {
       to_regclass('public.votes') IS NOT NULL AS votes,
       to_regclass('public.idx_posts_created') IS NOT NULL AS posts_created_index,
       to_regclass('public.idx_posts_community') IS NOT NULL AS posts_community_index,
-      to_regclass('public.idx_comments_post') IS NOT NULL AS comments_post_index
+      to_regclass('public.idx_comments_post') IS NOT NULL AS comments_post_index,
+      to_regclass('public.idx_votes_post') IS NOT NULL AS votes_post_index
   `);
   if (!Object.values(schema.rows[0]).every(Boolean)) return false;
 
@@ -341,20 +345,22 @@ export function listCommunities(): CommunitySummary[] {
   return CIRCLES.map(([slug, name, description]) => ({ slug, name, description }));
 }
 
-export async function getCommunity(slug: string): Promise<Community | null> {
-  const result = await query<Community>(
-    `SELECT id, slug, name, description FROM communities WHERE slug = $1`,
-    [slug],
-  );
-  const row = result.rows[0];
-  if (!row) return null;
-  return {
-    id: Number(row.id),
-    slug: String(row.slug),
-    name: String(row.name),
-    description: String(row.description),
-  };
-}
+export const getCommunity = cache(
+  async function getCommunity(slug: string): Promise<Community | null> {
+    const result = await query<Community>(
+      `SELECT id, slug, name, description FROM communities WHERE slug = $1`,
+      [slug],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      id: Number(row.id),
+      slug: String(row.slug),
+      name: String(row.name),
+      description: String(row.description),
+    };
+  },
+);
 
 function mapPost(row: PostRow): PostCard {
   return {
@@ -548,15 +554,19 @@ export async function listAdminMembers(): Promise<AdminMember[]> {
   }));
 }
 
-export async function getStats() {
-  const result = await query<{ members: string; threads: string }>(
-    `SELECT
-       (SELECT COUNT(*) FROM users WHERE email != $1) AS members,
-       (SELECT COUNT(*) FROM posts) AS threads`,
-    [HOST_EMAIL],
-  );
-  return {
-    members: Number(result.rows[0].members),
-    threads: Number(result.rows[0].threads),
-  };
-}
+export const getStats = unstable_cache(
+  async function getStats() {
+    const result = await query<{ members: string; threads: string }>(
+      `SELECT
+         (SELECT COUNT(*) FROM users WHERE email != $1) AS members,
+         (SELECT COUNT(*) FROM posts) AS threads`,
+      [HOST_EMAIL],
+    );
+    return {
+      members: Number(result.rows[0].members),
+      threads: Number(result.rows[0].threads),
+    };
+  },
+  ["marketing-tribe-stats"],
+  { revalidate: 60 },
+);

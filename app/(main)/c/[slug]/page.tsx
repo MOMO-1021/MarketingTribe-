@@ -26,11 +26,13 @@ export default async function CirclePage({
   const user = await getCurrentUser();
   if (!user) return null;
   const { slug } = await params;
-  const circle = await getCommunity(slug);
-  if (!circle) notFound();
   const { sort: sortParam } = await searchParams;
   const sort = sortParam === "top" ? "top" : "new";
-  const posts = await listPosts({ viewerId: user.id, communitySlug: slug, sort });
+  const [circle, posts] = await Promise.all([
+    getCommunity(slug),
+    listPosts({ viewerId: user.id, communitySlug: slug, sort }),
+  ]);
+  if (!circle) notFound();
 
   return (
     <div>
