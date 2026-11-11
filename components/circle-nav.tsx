@@ -8,17 +8,15 @@ import { useCircleFeedStore } from "./circle-feed-provider";
 
 export function CircleNav({ circles }: { circles: CommunitySummary[] }) {
   const path = usePathname();
-  const { navigate, prefetchFeed } = useCircleFeedStore();
-  const isFeedPage = path === "/home" || path.startsWith("/c/");
-  const navigateFeed = isFeedPage ? navigate : undefined;
+  const { navigate, prefetchFeed, prefetchPeople } = useCircleFeedStore();
 
   return (
     <nav className="flex gap-2 overflow-x-auto pb-1 md:flex-col md:gap-0.5 md:overflow-visible md:pb-0">
       <NavLink
         href="/home"
         active={path === "/home"}
-        navigate={navigateFeed}
-        prefetchFeed={prefetchFeed}
+        navigate={navigate}
+        onPrefetch={() => prefetchFeed("/home")}
       >
         All circles
       </NavLink>
@@ -27,14 +25,19 @@ export function CircleNav({ circles }: { circles: CommunitySummary[] }) {
           key={circle.slug}
           href={`/c/${circle.slug}`}
           active={path === `/c/${circle.slug}`}
-          navigate={navigateFeed}
-          prefetchFeed={prefetchFeed}
+          navigate={navigate}
+          onPrefetch={() => prefetchFeed(`/c/${circle.slug}`)}
         >
           {circle.name}
         </NavLink>
       ))}
       <div className="mx-1 hidden border-t border-line md:my-3 md:block" />
-      <NavLink href="/people" active={path === "/people"}>
+      <NavLink
+        href="/people"
+        active={path === "/people"}
+        navigate={navigate}
+        onPrefetch={prefetchPeople}
+      >
         People
       </NavLink>
     </nav>
@@ -46,20 +49,21 @@ function NavLink({
   active,
   children,
   navigate,
-  prefetchFeed,
+  onPrefetch,
 }: {
   href: string;
   active: boolean;
   children: ReactNode;
   navigate?: (href: string) => void;
-  prefetchFeed?: (href: string) => void;
+  onPrefetch?: () => void;
 }) {
   return (
     <Link
       href={href}
       prefetch={navigate ? false : undefined}
-      onMouseEnter={() => prefetchFeed?.(href)}
-      onFocus={() => prefetchFeed?.(href)}
+      onMouseEnter={onPrefetch}
+      onFocus={onPrefetch}
+      onTouchStart={onPrefetch}
       onClick={(event) => {
         if (
           !navigate ||

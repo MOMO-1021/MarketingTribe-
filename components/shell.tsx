@@ -4,6 +4,7 @@ import { logout } from "@/lib/actions";
 import { getStats, listCommunities, type PublicUser } from "@/lib/db";
 import { CircleNav } from "./circle-nav";
 import { CircleFeedProvider } from "./circle-feed-provider";
+import { WorkspaceContentBridge } from "./workspace-content-bridge";
 import { Wordmark } from "./wordmark";
 
 export async function Shell({ user, children }: { user: PublicUser; children: ReactNode }) {
@@ -43,7 +44,9 @@ export async function Shell({ user, children }: { user: PublicUser; children: Re
             <p className="mb-2 hidden text-xs uppercase tracking-[0.14em] text-mute md:block">Circles</p>
             <CircleNav circles={circles} />
           </aside>
-          <main className="min-w-0">{children}</main>
+          <main className="min-w-0">
+            <WorkspaceContentBridge>{children}</WorkspaceContentBridge>
+          </main>
           <aside className="hidden lg:block">
             <h2 className="font-serif text-xl tracking-tight">This room</h2>
             <p className="mt-2 text-sm leading-relaxed text-mute">

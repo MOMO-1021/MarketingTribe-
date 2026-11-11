@@ -1,7 +1,17 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useRef, type ReactNode } from "react";
-import type { PostCard } from "@/lib/db";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import type { PostCard, PublicUser } from "@/lib/db";
+
+export type MemberCard = Omit<PublicUser, "email">;
 
 export type CircleFeedData = {
   title: string;
@@ -20,6 +30,11 @@ type CircleFeedStore = {
   seedFeed: (href: string, feed: CircleFeedData) => void;
   loadFeed: (href: string) => Promise<CircleFeedData>;
   prefetchFeed: (href: string) => void;
+  getPeople: () => MemberCard[] | undefined;
+  seedPeople: (people: MemberCard[]) => void;
+  loadPeople: () => Promise<MemberCard[]>;
+  prefetchPeople: () => void;
+  shallowNavigation: boolean;
   navigate: (href: string) => void;
 };
 
@@ -28,6 +43,9 @@ const CircleFeedContext = createContext<CircleFeedStore | null>(null);
 export function CircleFeedProvider({ children }: { children: ReactNode }) {
   const feeds = useRef(new Map<string, CircleFeedData>());
   const requests = useRef(new Map<string, Promise<CircleFeedData>>());
+  const people = useRef<MemberCard[] | undefined>(undefined);
+  const peopleRequest = useRef<Promise<MemberCard[]> | undefined>(undefined);
+  const [shallowNavigation, setShallowNavigation] = useState(false);
 
   const getFeed = useCallback((href: string) => feeds.current.get(normalizeHref(href)), []);
 
@@ -72,17 +90,70 @@ export function CircleFeedProvider({ children }: { children: ReactNode }) {
     [getFeed, loadFeed],
   );
 
+  const getPeople = useCallback(() => people.current, []);
+
+  const seedPeople = useCallback((members: MemberCard[]) => {
+    if (!people.current) people.current = members;
+  }, []);
+
+  const loadPeople = useCallback(() => {
+    if (peopleRequest.current) return peopleRequest.current;
+    const request = fetch("/api/people", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("The people list could not be loaded.");
+        const payload: unknown = await response.json();
+        if (!isMemberList(payload)) throw new Error("The people list returned invalid data.");
+        people.current = payload;
+        return payload;
+      })
+      .finally(() => {
+        peopleRequest.current = undefined;
+      });
+    peopleRequest.current = request;
+    return request;
+  }, []);
+
+  const prefetchPeople = useCallback(() => {
+    if (getPeople()) return;
+    void loadPeople().catch(() => {});
+  }, [getPeople, loadPeople]);
+
   const navigate = useCallback((href: string) => {
     const nextHref = normalizeHref(href);
     const currentHref = normalizeHref(
       `${window.location.pathname}${window.location.search}`,
     );
-    if (nextHref !== currentHref) window.history.pushState(null, "", nextHref);
+    if (nextHref !== currentHref) {
+      setShallowNavigation(true);
+      window.history.pushState(null, "", nextHref);
+    }
   }, []);
 
   const store = useMemo(
-    () => ({ getFeed, seedFeed, loadFeed, prefetchFeed, navigate }),
-    [getFeed, seedFeed, loadFeed, prefetchFeed, navigate],
+    () => ({
+      getFeed,
+      seedFeed,
+      loadFeed,
+      prefetchFeed,
+      getPeople,
+      seedPeople,
+      loadPeople,
+      prefetchPeople,
+      shallowNavigation,
+      navigate,
+    }),
+    [
+      getFeed,
+      seedFeed,
+      loadFeed,
+      prefetchFeed,
+      getPeople,
+      seedPeople,
+      loadPeople,
+      prefetchPeople,
+      shallowNavigation,
+      navigate,
+    ],
   );
 
   return <CircleFeedContext.Provider value={store}>{children}</CircleFeedContext.Provider>;
@@ -117,5 +188,22 @@ function isCircleFeedData(value: unknown): value is CircleFeedData {
     typeof feed.createLabel === "string" &&
     typeof feed.empty === "string" &&
     Array.isArray(feed.posts)
+  );
+}
+
+function isMemberList(value: unknown): value is MemberCard[] {
+  return (
+    Array.isArray(value) &&
+    value.every((member: unknown) => {
+      if (typeof member !== "object" || member === null) return false;
+      const record = member as Record<string, unknown>;
+      return (
+        typeof record.id === "number" &&
+        typeof record.name === "string" &&
+        typeof record.practice === "string" &&
+        typeof record.city === "string" &&
+        typeof record.created_at === "number"
+      );
+    })
   );
 }

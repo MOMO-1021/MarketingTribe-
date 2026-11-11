@@ -6,18 +6,36 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { LoadingState } from "@/components/loading-state";
 import { PostList } from "@/components/post-list";
 import { FeedBar } from "@/components/feed-bar";
+import { PeopleDirectory } from "@/components/people-directory";
 import {
   normalizeHref,
   useCircleFeedStore,
   type CircleFeedData,
+  type MemberCard,
 } from "./circle-feed-provider";
 
 export function CircleFeed({
   initialHref,
   initialFeed,
+  initialPeople,
 }: {
   initialHref: string;
-  initialFeed: CircleFeedData;
+  initialFeed?: CircleFeedData;
+  initialPeople?: MemberCard[];
+}) {
+  const pathname = usePathname();
+  if (pathname === "/people") {
+    return <PeopleDirectory initialPeople={initialPeople} />;
+  }
+  return <CircleFeedView initialHref={initialHref} initialFeed={initialFeed} />;
+}
+
+function CircleFeedView({
+  initialHref,
+  initialFeed,
+}: {
+  initialHref: string;
+  initialFeed?: CircleFeedData;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -30,9 +48,9 @@ export function CircleFeed({
   const search = params.toString();
   const currentHref = normalizeHref(`${pathname}${search ? `?${search}` : ""}`);
   const initialKey = normalizeHref(initialHref);
-  const cachedInitialFeed = store.getFeed(initialHref);
+  const cachedInitialFeed = initialFeed ? store.getFeed(initialHref) : undefined;
   const hadCachedInitialFeed = useRef(cachedInitialFeed !== undefined);
-  store.seedFeed(initialHref, initialFeed);
+  if (initialFeed) store.seedFeed(initialHref, initialFeed);
 
   const [, setFeed] = useState<CircleFeedData | undefined>(
     () => cachedInitialFeed ?? initialFeed,
@@ -45,7 +63,7 @@ export function CircleFeed({
 
   useEffect(() => {
     let active = true;
-    const firstRenderOfInitialRoute = firstView.current && currentHref === initialKey;
+    const firstRenderOfInitialRoute = firstView.current && currentHref === initialKey && initialFeed !== undefined;
     firstView.current = false;
     if (firstRenderOfInitialRoute && !hadCachedInitialFeed.current) {
       return () => {
