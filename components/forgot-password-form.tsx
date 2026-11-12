@@ -1,15 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export function ForgotPasswordForm() {
+  const router = useRouter();
   const [pending, setPending] = useState(false);
-  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   async function submit(formData: FormData) {
     setPending(true);
-    setMessage("");
     setError("");
 
     try {
@@ -23,7 +23,7 @@ export function ForgotPasswordForm() {
       if (!result || typeof result !== "object" || !("message" in result) || typeof result.message !== "string") {
         throw new Error("Invalid response");
       }
-      setMessage(result.message);
+      router.replace("/forgot-password/sent");
     } catch {
       setError("We could not process your request right now. Please try again later.");
     } finally {
@@ -36,7 +36,6 @@ export function ForgotPasswordForm() {
       action={submit}
       className="mt-8 space-y-4"
       onSubmit={() => {
-        setMessage("");
         setError("");
       }}
     >
@@ -51,9 +50,9 @@ export function ForgotPasswordForm() {
           className="field"
         />
       </label>
-      {message ? (
-        <p role="status" className="text-sm leading-relaxed text-mute">
-          {message}
+      {pending ? (
+        <p role="status" aria-live="polite" className="text-sm text-mute">
+          Sending your request…
         </p>
       ) : null}
       {error ? (
@@ -61,8 +60,23 @@ export function ForgotPasswordForm() {
           {error}
         </p>
       ) : null}
-      <button type="submit" disabled={pending} className="btn-large disabled:opacity-60">
-        {pending ? "Checking…" : "Send reset link"}
+      <button
+        type="submit"
+        disabled={pending}
+        aria-busy={pending}
+        className="btn-large disabled:cursor-wait disabled:opacity-70"
+      >
+        {pending ? (
+          <>
+            <span
+              aria-hidden="true"
+              className="mr-2 inline-block size-3.5 shrink-0 animate-spin rounded-full border-2 border-current border-r-transparent motion-reduce:animate-none"
+            />
+            Sending…
+          </>
+        ) : (
+          "Send reset link"
+        )}
       </button>
     </form>
   );
