@@ -50,13 +50,24 @@ export function ReplyTree({
         : ""}
     >
       <div className="flex items-start gap-2">
-        <VoteButton replyId={node.id} score={node.score} voted={node.voted} />
+        <VoteButton
+          replyId={node.id}
+          score={node.score}
+          upvotes_count={node.upvotes_count}
+          downvotes_count={node.downvotes_count}
+          voted={node.voted}
+        />
         <div className="min-w-0 flex-1">
           <p className="text-xs text-mute">
-            <Link href={`/u/${node.user_id}`} className="hover:text-ink">
-              {node.author_name}
-            </Link>
-            <span> · {node.author_city} · </span>
+            {node.author_deleted ? (
+              node.author_name
+            ) : (
+              <Link href={`/u/${node.user_id}`} className="hover:text-ink">
+                {node.author_name}
+              </Link>
+            )}
+            {node.author_city ? <span> · {node.author_city}</span> : null}
+            <span> · </span>
             <time dateTime={new Date(node.created_at).toISOString()}>{formatTime(node.created_at)}</time>
           </p>
           <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed">{node.body}</p>

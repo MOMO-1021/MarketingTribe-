@@ -41,10 +41,13 @@ export type PostCard = {
   author_id: number;
   author_name: string;
   author_city: string;
+  author_deleted: boolean;
   community_name: string;
   community_slug: string;
   comment_count: number;
   score: number;
+  upvotes_count: number;
+  downvotes_count: number;
   voted: -1 | 0 | 1;
 };
 
@@ -57,7 +60,10 @@ export type Reply = {
   created_at: number;
   author_name: string;
   author_city: string;
+  author_deleted: boolean;
   score: number;
+  upvotes_count: number;
+  downvotes_count: number;
   voted: -1 | 0 | 1;
 };
 
@@ -76,10 +82,13 @@ type PostRow = QueryResultRow & {
   author_id: number | string;
   author_name: string;
   author_city: string;
+  author_deleted: boolean;
   community_name: string;
   community_slug: string;
   comment_count: number | string;
   score: number | string;
+  upvotes_count: number | string;
+  downvotes_count: number | string;
   voted: number | string;
 };
 
@@ -88,11 +97,14 @@ type ReplyRow = QueryResultRow & {
   post_id: number | string;
   parent_id: number | string | null;
   user_id: number | string;
+  author_deleted: boolean;
   body: string;
   created_at: number | string;
   author_name: string;
   author_city: string;
   score: number | string;
+  upvotes_count: number | string;
+  downvotes_count: number | string;
   voted: number | string;
 };
 
@@ -165,6 +177,7 @@ async function initializeSchema() {
   await db.query(
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS session_version BIGINT NOT NULL DEFAULT 0`,
   );
+  await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at BIGINT`);
   await db.query(`
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
       token_hash TEXT PRIMARY KEY,
@@ -348,6 +361,12 @@ async function databaseIsInitialized() {
           AND table_name = 'users'
           AND column_name = 'session_version'
       ) AS session_version,
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'users'
+          AND column_name = 'deleted_at'
+      ) AS users_deleted_at,
       to_regclass('public.password_reset_tokens') IS NOT NULL AS password_reset_tokens,
       to_regclass('public.password_reset_rate_limits') IS NOT NULL AS password_reset_rate_limits,
       to_regclass('public.idx_password_reset_tokens_user') IS NOT NULL AS reset_tokens_user_index,
@@ -397,7 +416,7 @@ function toPublicUser(row: UserRow): SessionUser {
 export async function getUserById(id: number): Promise<SessionUser | null> {
   const result = await query<UserRow>(
     `SELECT id, email, password_hash, name, practice, city, created_at, welcome_read_at, session_version
-     FROM users WHERE id = $1`,
+     FROM users WHERE id = $1 AND deleted_at IS NULL`,
     [id],
   );
   return result.rows[0] ? toPublicUser(result.rows[0]) : null;
@@ -408,11 +427,62 @@ export async function getUserByEmail(
 ): Promise<(SessionUser & { password_hash: string }) | null> {
   const result = await query<UserRow>(
     `SELECT id, email, password_hash, name, practice, city, created_at, welcome_read_at, session_version
-     FROM users WHERE email = $1`,
+     FROM users WHERE email = $1 AND deleted_at IS NULL`,
     [email],
   );
   const row = result.rows[0];
   return row ? { ...toPublicUser(row), password_hash: String(row.password_hash) } : null;
+}
+
+export async function getPasswordHashForUser(userId: number) {
+  const result = await query<{ password_hash: string }>(
+    `SELECT password_hash FROM users WHERE id = $1 AND deleted_at IS NULL`,
+    [userId],
+  );
+  return result.rows[0] ? String(result.rows[0].password_hash) : null;
+}
+
+export async function anonymizeUserAccount(
+  userId: number,
+  expectedPasswordHash: string,
+  replacementPasswordHash: string,
+  replacementEmail: string,
+  deletedAt: number,
+) {
+  await ensureDatabase();
+  const client = await getDb().connect();
+  try {
+    await client.query("BEGIN");
+    const user = await client.query(
+      `SELECT id FROM users
+       WHERE id = $1 AND password_hash = $2 AND email != $3 AND deleted_at IS NULL
+       FOR UPDATE`,
+      [userId, expectedPasswordHash, HOST_EMAIL],
+    );
+    if (user.rowCount !== 1) {
+      await client.query("ROLLBACK");
+      return false;
+    }
+
+    await client.query(
+      `UPDATE users
+       SET email = $1, password_hash = $2, name = 'Deleted member',
+           practice = '', city = '', deleted_at = $3,
+           session_version = session_version + 1
+       WHERE id = $4`,
+      [replacementEmail, replacementPasswordHash, deletedAt, userId],
+    );
+    await client.query(`DELETE FROM password_reset_tokens WHERE user_id = $1`, [userId]);
+    await client.query(`DELETE FROM votes WHERE user_id = $1`, [userId]);
+    await client.query(`DELETE FROM reply_votes WHERE user_id = $1`, [userId]);
+    await client.query("COMMIT");
+    return true;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function emailTaken(email: string): Promise<boolean> {
@@ -425,7 +495,7 @@ export async function emailTaken(email: string): Promise<boolean> {
 
 export async function getPasswordResetRecipient(email: string) {
   const result = await query<{ id: number | string; name: string }>(
-    `SELECT id, name FROM users WHERE email = $1 AND email != $2`,
+    `SELECT id, name FROM users WHERE email = $1 AND email != $2 AND deleted_at IS NULL`,
     [email, HOST_EMAIL],
   );
   const row = result.rows[0];
@@ -603,10 +673,13 @@ function mapPost(row: PostRow): PostCard {
     author_id: Number(row.author_id),
     author_name: String(row.author_name),
     author_city: String(row.author_city),
+    author_deleted: row.author_deleted,
     community_name: String(row.community_name),
     community_slug: String(row.community_slug),
     comment_count: Number(row.comment_count),
     score: Number(row.score),
+    upvotes_count: Number(row.upvotes_count),
+    downvotes_count: Number(row.downvotes_count),
     voted: Number(row.voted) as -1 | 0 | 1,
   };
 }
@@ -620,10 +693,13 @@ const POST_SELECT = `
     u.id AS author_id,
     u.name AS author_name,
     u.city AS author_city,
+    u.deleted_at IS NOT NULL AS author_deleted,
     c.name AS community_name,
     c.slug AS community_slug,
     (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id) AS comment_count,
     (SELECT GREATEST(COALESCE(SUM(v.vote_value), 0), 0) FROM votes v WHERE v.post_id = p.id) AS score,
+    (SELECT COUNT(*) FROM votes v WHERE v.post_id = p.id AND v.vote_value = 1) AS upvotes_count,
+    (SELECT COUNT(*) FROM votes v WHERE v.post_id = p.id AND v.vote_value = -1) AS downvotes_count,
     COALESCE((SELECT v.vote_value FROM votes v WHERE v.post_id = p.id AND v.user_id = $1), 0) AS voted
   FROM posts p
   JOIN users u ON u.id = p.user_id
@@ -714,15 +790,24 @@ export async function setPostVote(postId: number, userId: number, voteValue: -1 
 }
 
 export async function getPostVote(postId: number, userId: number) {
-  const result = await query<{ score: number | string; voted: number | string }>(
+  const result = await query<{
+    score: number | string;
+    upvotes_count: number | string;
+    downvotes_count: number | string;
+    voted: number | string;
+  }>(
     `SELECT
        GREATEST(COALESCE(SUM(vote_value), 0), 0) AS score,
+       COUNT(*) FILTER (WHERE vote_value = 1) AS upvotes_count,
+       COUNT(*) FILTER (WHERE vote_value = -1) AS downvotes_count,
        COALESCE(MAX(vote_value) FILTER (WHERE user_id = $2), 0) AS voted
      FROM votes WHERE post_id = $1`,
     [postId, userId],
   );
   return {
     score: Number(result.rows[0].score),
+    upvotes_count: Number(result.rows[0].upvotes_count),
+    downvotes_count: Number(result.rows[0].downvotes_count),
     voted: Number(result.rows[0].voted) as -1 | 0 | 1,
   };
 }
@@ -731,8 +816,13 @@ export async function listReplies(postId: number, viewerId: number): Promise<Rep
   const result = await query<ReplyRow>(
     `SELECT cm.id, cm.post_id, cm.parent_id, cm.user_id, cm.body, cm.created_at,
             u.name AS author_name, u.city AS author_city,
+            u.deleted_at IS NOT NULL AS author_deleted,
             (SELECT GREATEST(COALESCE(SUM(rv.vote_value), 0), 0)
              FROM reply_votes rv WHERE rv.comment_id = cm.id) AS score,
+            (SELECT COUNT(*) FROM reply_votes rv
+             WHERE rv.comment_id = cm.id AND rv.vote_value = 1) AS upvotes_count,
+            (SELECT COUNT(*) FROM reply_votes rv
+             WHERE rv.comment_id = cm.id AND rv.vote_value = -1) AS downvotes_count,
             COALESCE((SELECT rv.vote_value FROM reply_votes rv
                       WHERE rv.comment_id = cm.id AND rv.user_id = $2), 0) AS voted
      FROM comments cm
@@ -746,11 +836,14 @@ export async function listReplies(postId: number, viewerId: number): Promise<Rep
     post_id: Number(row.post_id),
     parent_id: row.parent_id === null ? null : Number(row.parent_id),
     user_id: Number(row.user_id),
+    author_deleted: row.author_deleted,
     body: String(row.body),
     created_at: Number(row.created_at),
     author_name: String(row.author_name),
     author_city: String(row.author_city),
     score: Number(row.score),
+    upvotes_count: Number(row.upvotes_count),
+    downvotes_count: Number(row.downvotes_count),
     voted: Number(row.voted) as -1 | 0 | 1,
   }));
 }
@@ -789,15 +882,24 @@ export async function setReplyVote(commentId: number, userId: number, voteValue:
 }
 
 export async function getReplyVote(commentId: number, userId: number) {
-  const result = await query<{ score: number | string; voted: number | string }>(
+  const result = await query<{
+    score: number | string;
+    upvotes_count: number | string;
+    downvotes_count: number | string;
+    voted: number | string;
+  }>(
     `SELECT
        GREATEST(COALESCE(SUM(vote_value), 0), 0) AS score,
+       COUNT(*) FILTER (WHERE vote_value = 1) AS upvotes_count,
+       COUNT(*) FILTER (WHERE vote_value = -1) AS downvotes_count,
        COALESCE(MAX(vote_value) FILTER (WHERE user_id = $2), 0) AS voted
      FROM reply_votes WHERE comment_id = $1`,
     [commentId, userId],
   );
   return {
     score: Number(result.rows[0].score),
+    upvotes_count: Number(result.rows[0].upvotes_count),
+    downvotes_count: Number(result.rows[0].downvotes_count),
     voted: Number(result.rows[0].voted) as -1 | 0 | 1,
   };
 }
@@ -818,7 +920,7 @@ export async function deleteReply(id: number, userId: number) {
 export async function listMembers(): Promise<Array<Omit<PublicUser, "email">>> {
   const result = await query<PublicUser>(
     `SELECT id, name, practice, city, created_at
-     FROM users WHERE email != $1 ORDER BY created_at DESC`,
+     FROM users WHERE email != $1 AND deleted_at IS NULL ORDER BY created_at DESC`,
     [HOST_EMAIL],
   );
   return result.rows.map((row) => ({
@@ -837,7 +939,7 @@ export async function listAdminMembers(): Promise<AdminMember[]> {
        (SELECT COUNT(*) FROM posts p WHERE p.user_id = u.id) AS thread_count,
        (SELECT COUNT(*) FROM comments cm WHERE cm.user_id = u.id) AS reply_count
      FROM users u
-     WHERE u.email != $1
+     WHERE u.email != $1 AND u.deleted_at IS NULL
      ORDER BY u.created_at DESC`,
     [HOST_EMAIL],
   );
@@ -857,7 +959,7 @@ export const getStats = unstable_cache(
   async function getStats() {
     const result = await query<{ members: string; threads: string }>(
       `SELECT
-         (SELECT COUNT(*) FROM users WHERE email != $1) AS members,
+         (SELECT COUNT(*) FROM users WHERE email != $1 AND deleted_at IS NULL) AS members,
          (SELECT COUNT(*) FROM posts) AS threads`,
       [HOST_EMAIL],
     );

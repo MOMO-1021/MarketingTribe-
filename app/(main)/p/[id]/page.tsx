@@ -55,14 +55,25 @@ export default async function PostPage({
         </Link>
       </p>
       <div className="mt-3 flex gap-3">
-        <VoteButton postId={post.id} score={post.score} voted={post.voted} />
+        <VoteButton
+          postId={post.id}
+          score={post.score}
+          upvotes_count={post.upvotes_count}
+          downvotes_count={post.downvotes_count}
+          voted={post.voted}
+        />
         <div className="min-w-0 flex-1">
           <h1 className="font-serif text-3xl leading-tight tracking-tight">{post.title}</h1>
           <p className="mt-2 text-sm text-mute">
-            <Link href={`/u/${post.author_id}`} className="hover:text-ink">
-              {post.author_name}
-            </Link>
-            <span> · {post.author_city} · </span>
+            {post.author_deleted ? (
+              post.author_name
+            ) : (
+              <Link href={`/u/${post.author_id}`} className="hover:text-ink">
+                {post.author_name}
+              </Link>
+            )}
+            {post.author_city ? <span> · {post.author_city}</span> : null}
+            <span> · </span>
             <time dateTime={new Date(post.created_at).toISOString()}>{formatTime(post.created_at)}</time>
           </p>
           {post.body ? (

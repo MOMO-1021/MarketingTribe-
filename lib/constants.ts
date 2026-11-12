@@ -48,6 +48,7 @@ const ERRORS = {
   forbidden: "You can only change your own thread.",
   replyforbidden: "You can only change your own reply.",
   profile: "Check your name, practice, and city.",
+  deletepassword: "Your password was incorrect. Your account was not deleted.",
 } as const;
 
 export function errorMessage(code?: string) {

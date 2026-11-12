@@ -1,6 +1,7 @@
 "use server";
 
 import { compareSync, hashSync } from "bcryptjs";
+import { randomBytes } from "crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { HOST_EMAIL, PRACTICES } from "./constants";
@@ -8,10 +9,12 @@ import {
   createPost,
   createReply,
   createUser,
+  anonymizeUserAccount,
   deletePost as removePost,
   deleteReply as removeReply,
   emailTaken,
   getPost,
+  getPasswordHashForUser,
   getUserByEmail,
   markWelcomeRead,
   updatePost as savePost,
@@ -88,6 +91,34 @@ export async function acknowledgeWelcome() {
 export async function logout() {
   await clearSession();
   redirect("/");
+}
+
+export async function deleteAccount(formData: FormData) {
+  const user = await requireUser();
+  const password = String(formData.get("password") ?? "");
+  const currentPasswordHash = await getPasswordHashForUser(user.id);
+  if (
+    !currentPasswordHash ||
+    password.length > 200 ||
+    !compareSync(password, currentPasswordHash)
+  ) {
+    redirect("/settings?e=deletepassword");
+  }
+
+  const replacementPasswordHash = hashSync(randomBytes(32).toString("hex"), 10);
+  const replacementEmail = `deleted-${user.id}-${randomBytes(16).toString("hex")}@deleted.invalid`;
+  const deleted = await anonymizeUserAccount(
+    user.id,
+    currentPasswordHash,
+    replacementPasswordHash,
+    replacementEmail,
+    Date.now(),
+  );
+  if (!deleted) redirect("/settings?e=deletepassword");
+
+  await clearSession();
+  revalidatePath("/", "layout");
+  redirect("/login?success=deleted");
 }
 
 export async function publishThread(formData: FormData) {

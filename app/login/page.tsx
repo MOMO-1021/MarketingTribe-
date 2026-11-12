@@ -25,9 +25,11 @@ export default async function LoginPage({
       <h1 className="mt-8 font-serif text-4xl tracking-tight">Sign in</h1>
       <p className="mt-2 text-sm text-mute">The room is on the other side of your account.</p>
       <form action={login} className="mt-8 space-y-4">
-        {success === "reset" ? (
+        {success === "reset" || success === "deleted" ? (
           <p role="status" className="text-sm text-emerald-700">
-            Your password has been updated. Sign in with your new password.
+            {success === "reset"
+              ? "Your password has been updated. Sign in with your new password."
+              : "Your account has been deleted."}
           </p>
         ) : null}
         <FormError message={errorMessage(e)} />
@@ -44,13 +46,15 @@ export default async function LoginPage({
             required
             className="field"
           />
+        </label>
+        <div className="-mt-2 text-right">
           <Link
             href="/forgot-password"
-            className="mt-2 inline-block text-xs text-mute underline decoration-line underline-offset-4 hover:text-ink"
+            className="inline-block text-xs text-mute underline decoration-line underline-offset-4 hover:text-ink"
           >
             Forgot password?
           </Link>
-        </label>
+        </div>
         <SubmitButton className="btn-large" pendingLabel="Signing in…">
           Enter
         </SubmitButton>

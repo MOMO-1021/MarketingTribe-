@@ -31,6 +31,9 @@ export async function Shell({ user, children }: { user: PublicUser; children: Re
             <span className="font-medium">{user.name}</span>
             <span className="text-mute"> · {user.city}</span>
           </Link>
+          <Link href="/settings" className="text-sm text-mute hover:text-ink">
+            Settings
+          </Link>
           <form action={logout}>
             <button type="submit" className="text-sm text-mute hover:text-ink">
               Sign out

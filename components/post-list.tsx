@@ -17,7 +17,13 @@ export function PostList({ posts, empty }: { posts: PostCard[]; empty: string })
     <div className="border-t border-line">
       {posts.map((post) => (
         <article key={post.id} className="flex gap-2 border-b border-line py-4">
-          <VoteButton postId={post.id} score={post.score} voted={post.voted} />
+          <VoteButton
+            postId={post.id}
+            score={post.score}
+            upvotes_count={post.upvotes_count}
+            downvotes_count={post.downvotes_count}
+            voted={post.voted}
+          />
           <div className="min-w-0">
             <h2 className="font-serif text-xl leading-snug tracking-tight">
               <Link href={`/p/${post.id}`} className="hover:underline">
@@ -52,10 +58,15 @@ export function PostList({ posts, empty }: { posts: PostCard[]; empty: string })
                 {post.community_name}
               </Link>
               <span> · </span>
-              <Link href={`/u/${post.author_id}`} className="hover:text-ink">
-                {post.author_name}
-              </Link>
-              <span> · {post.author_city} · </span>
+              {post.author_deleted ? (
+                post.author_name
+              ) : (
+                <Link href={`/u/${post.author_id}`} className="hover:text-ink">
+                  {post.author_name}
+                </Link>
+              )}
+              {post.author_city ? <span> · {post.author_city}</span> : null}
+              <span> · </span>
               <time dateTime={new Date(post.created_at).toISOString()}>{formatTime(post.created_at)}</time>
               <span> · </span>
               <Link href={`/p/${post.id}`} className="hover:text-ink">
