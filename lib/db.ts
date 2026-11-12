@@ -856,10 +856,10 @@ export async function createReply(
 ) {
   const result = await query(
     `INSERT INTO comments (post_id, user_id, body, created_at, parent_id)
-     SELECT $1, $2, $3, $4, $5
+     SELECT $1, $2, $3, $4, $5::BIGINT
      WHERE EXISTS (SELECT 1 FROM posts WHERE id = $1)
-       AND ($5 IS NULL OR EXISTS (
-         SELECT 1 FROM comments WHERE id = $5 AND post_id = $1
+       AND ($5::BIGINT IS NULL OR EXISTS (
+         SELECT 1 FROM comments WHERE id = $5::BIGINT AND post_id = $1
        ))
      RETURNING id`,
     [postId, userId, body, Date.now(), parentId],
