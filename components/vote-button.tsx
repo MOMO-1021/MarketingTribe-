@@ -116,16 +116,20 @@ export function VoteButton({
     <div>
       <div className="flex flex-col items-start">
         <div className="flex items-center">
-          <VoteSubmit direction={1} voted={voteState.voted} onVote={handleVote} />
-          <span className="text-xs tabular-nums" aria-label={`${voteState.upvotes_count} upvotes`}>
-            {voteState.upvotes_count}
-          </span>
+          <VoteSubmit
+            direction={1}
+            count={voteState.upvotes_count}
+            voted={voteState.voted}
+            onVote={handleVote}
+          />
         </div>
         <div className="flex items-center">
-          <VoteSubmit direction={-1} voted={voteState.voted} onVote={handleVote} />
-          <span className="text-xs tabular-nums" aria-label={`${voteState.downvotes_count} downvotes`}>
-            {voteState.downvotes_count}
-          </span>
+          <VoteSubmit
+            direction={-1}
+            count={voteState.downvotes_count}
+            voted={voteState.voted}
+            onVote={handleVote}
+          />
         </div>
       </div>
       {error ? (
@@ -139,10 +143,12 @@ export function VoteButton({
 
 function VoteSubmit({
   direction,
+  count,
   voted,
   onVote,
 }: {
   direction: -1 | 1;
+  count: number;
   voted: -1 | 0 | 1;
   onVote: (direction: -1 | 1) => void;
 }) {
@@ -152,13 +158,14 @@ function VoteSubmit({
     <button
       type="button"
       aria-pressed={selected}
-      aria-label={`${selected ? "Remove " : ""}${direction === 1 ? "upvote" : "downvote"}`}
-      className={`rounded-md px-2 py-1 text-xs ${
+      aria-label={`${selected ? "Remove " : ""}${direction === 1 ? "upvote" : "downvote"}; ${count} total`}
+      className={`flex min-w-[42px] items-center gap-1 rounded-md px-2 py-1 text-xs tabular-nums ${
         selected ? "text-clay" : "text-mute hover:text-ink"
       }`}
       onClick={() => onVote(direction)}
     >
       {direction === 1 ? "▲" : "▼"}
+      <span>{count}</span>
     </button>
   );
 }

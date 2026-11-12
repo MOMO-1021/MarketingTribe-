@@ -47,12 +47,12 @@ export default async function LoginPage({
             className="field"
           />
         </label>
-        <div className="-mt-2 text-right">
+        <div className="-mt-2">
           <Link
             href="/forgot-password"
-            className="inline-block text-xs text-mute underline decoration-line underline-offset-4 hover:text-ink"
+            className="inline-block text-sm font-medium text-ink underline decoration-line underline-offset-4 hover:text-clay"
           >
-            Forgot password?
+            Forgot your password? Reset it here.
           </Link>
         </div>
         <SubmitButton className="btn-large" pendingLabel="Signing in…">
