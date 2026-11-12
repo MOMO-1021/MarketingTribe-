@@ -32,6 +32,13 @@ The script loads `DATABASE_URL` from `.env.local`. It aborts if the Neon databas
    | `SESSION_SECRET` | A new random secret, at least 32 characters |
    | `ADMIN_ACCESS_CODE` | A private random access code, 16–256 characters |
    | `ADMIN_PASSWORD` | A separate private password, 16–256 characters |
+   | `SMTP_HOST` | `smtp.gmail.com` |
+   | `SMTP_PORT` | `465` |
+   | `SMTP_SECURE` | `true` |
+   | `SMTP_USER` | Dedicated Gmail account address |
+   | `SMTP_APP_PASSWORD` | Google App Password (not the Gmail sign-in password) |
+   | `EMAIL_FROM` | `MarketingTribe <same-address-as-SMTP_USER>` |
+   | `APP_URL` | `https://marketingtribe-momo-1021.netlify.app` |
 
    Generate three separate secrets locally with:
 
@@ -41,6 +48,14 @@ The script loads `DATABASE_URL` from `.env.local`. It aborts if the Neon databas
 
    Enter the generated values directly in Netlify. Do not add a `NEXT_PUBLIC_` prefix, commit secrets, or send them in chat. Use a separate Neon branch/database for Preview deploys if enabling them.
 4. Trigger a deploy. After it succeeds, create an account, sign in, and verify that a thread remains after a new deploy. The private dashboard is at `/admin`.
+
+### Password reset email
+
+1. Enable 2-Step Verification on the dedicated Gmail account and create a Google App Password. If an App Password has ever been pasted into a chat, ticket, or source file, revoke it and generate a new one before use.
+2. In Netlify, open **Site configuration → Environment variables** and add the `SMTP_*`, `EMAIL_FROM`, and `APP_URL` variables listed above for the Production context. The address in `SMTP_USER` must match the email address inside `EMAIL_FROM`. The app removes spaces from `SMTP_APP_PASSWORD` before authenticating.
+3. Keep these variables server-only: do not prefix them with `NEXT_PUBLIC_`, put credentials in the repository, or reuse your Gmail sign-in password.
+4. The reset-token table, rate-limit table, and user session-version column are created automatically by the app's existing database initialization when the first request reaches the updated deployment. No manual SQL or data import is required.
+5. To test production delivery, deploy the update, open `/forgot-password`, and submit an email address belonging to an existing account. Check that mailbox and its spam folder, follow the link promptly, set a new password, and sign in with it. Confirm the former password no longer works and other accounts remain unaffected. The app deliberately shows the same request confirmation for known and unknown addresses.
 
 ## Local development
 

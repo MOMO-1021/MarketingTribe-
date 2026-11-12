@@ -73,7 +73,7 @@ export async function login(formData: FormData) {
   if (!user || user.email === HOST_EMAIL || !compareSync(password, user.password_hash)) {
     redirect("/login?e=credentials");
   }
-  await setSession(user.id);
+  await setSession(user.id, user.session_version);
   redirect(user.welcome_read_at === null ? "/welcome" : "/home");
 }
 

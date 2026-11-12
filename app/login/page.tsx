@@ -13,11 +13,11 @@ export const metadata: Metadata = { title: "Sign in" };
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ e?: string }>;
+  searchParams: Promise<{ e?: string; success?: string }>;
 }) {
   const user = await getCurrentUser();
   if (user) redirect("/home");
-  const { e } = await searchParams;
+  const { e, success } = await searchParams;
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-16">
@@ -25,6 +25,11 @@ export default async function LoginPage({
       <h1 className="mt-8 font-serif text-4xl tracking-tight">Sign in</h1>
       <p className="mt-2 text-sm text-mute">The room is on the other side of your account.</p>
       <form action={login} className="mt-8 space-y-4">
+        {success === "reset" ? (
+          <p role="status" className="text-sm text-emerald-700">
+            Your password has been updated. Sign in with your new password.
+          </p>
+        ) : null}
         <FormError message={errorMessage(e)} />
         <label className="block">
           <span className="label">Email</span>
@@ -39,6 +44,12 @@ export default async function LoginPage({
             required
             className="field"
           />
+          <Link
+            href="/forgot-password"
+            className="mt-2 inline-block text-xs text-mute underline decoration-line underline-offset-4 hover:text-ink"
+          >
+            Forgot password?
+          </Link>
         </label>
         <SubmitButton className="btn-large" pendingLabel="Signing in…">
           Enter

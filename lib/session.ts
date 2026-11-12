@@ -14,15 +14,20 @@ function secret() {
   return value;
 }
 
-function seal(userId: number) {
+type SessionClaims = {
+  userId: number;
+  sessionVersion: number;
+};
+
+function seal(userId: number, sessionVersion: number) {
   const body = Buffer.from(
-    JSON.stringify({ uid: userId, exp: Date.now() + MAX_AGE * 1000 }),
+    JSON.stringify({ uid: userId, sv: sessionVersion, exp: Date.now() + MAX_AGE * 1000 }),
   ).toString("base64url");
   const sig = createHmac("sha256", secret()).update(body).digest("base64url");
   return `${body}.${sig}`;
 }
 
-function open(token: string): number | null {
+function open(token: string): SessionClaims | null {
   const [body, sig] = token.split(".");
   if (!body || !sig) return null;
   const expected = createHmac("sha256", secret()).update(body).digest("base64url");
@@ -34,19 +39,21 @@ function open(token: string): number | null {
   try {
     const data = JSON.parse(Buffer.from(body, "base64url").toString()) as {
       uid?: unknown;
+      sv?: unknown;
       exp?: unknown;
     };
     if (typeof data.uid !== "number" || typeof data.exp !== "number") return null;
+    if (data.sv !== undefined && typeof data.sv !== "number") return null;
     if (data.exp < Date.now()) return null;
-    return data.uid;
+    return { userId: data.uid, sessionVersion: data.sv ?? 0 };
   } catch {
     return null;
   }
 }
 
-export async function setSession(userId: number) {
+export async function setSession(userId: number, sessionVersion = 0) {
   const jar = await cookies();
-  jar.set(COOKIE, seal(userId), {
+  jar.set(COOKIE, seal(userId, sessionVersion), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -64,7 +71,9 @@ export const getCurrentUser = cache(async function getCurrentUser(): Promise<Ses
   const jar = await cookies();
   const token = jar.get(COOKIE)?.value;
   if (!token) return null;
-  const userId = open(token);
-  if (!userId) return null;
-  return getUserById(userId);
+  const claims = open(token);
+  if (!claims) return null;
+  const user = await getUserById(claims.userId);
+  if (!user || user.session_version !== claims.sessionVersion) return null;
+  return user;
 });
