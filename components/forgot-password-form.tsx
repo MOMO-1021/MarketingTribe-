@@ -2,14 +2,25 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useFormStatus } from "react-dom";
+
+import { SubmitButton } from "@/components/submit-button";
+
+function PendingStatus() {
+  const { pending } = useFormStatus();
+
+  return pending ? (
+    <p role="status" aria-live="polite" className="text-sm text-mute">
+      Sending your request…
+    </p>
+  ) : null;
+}
 
 export function ForgotPasswordForm() {
   const router = useRouter();
-  const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
 
   async function submit(formData: FormData) {
-    setPending(true);
     setError("");
 
     try {
@@ -26,8 +37,6 @@ export function ForgotPasswordForm() {
       router.replace("/forgot-password/sent");
     } catch {
       setError("We could not process your request right now. Please try again later.");
-    } finally {
-      setPending(false);
     }
   }
 
@@ -50,34 +59,15 @@ export function ForgotPasswordForm() {
           className="field"
         />
       </label>
-      {pending ? (
-        <p role="status" aria-live="polite" className="text-sm text-mute">
-          Sending your request…
-        </p>
-      ) : null}
+      <PendingStatus />
       {error ? (
         <p role="alert" className="text-sm text-clay">
           {error}
         </p>
       ) : null}
-      <button
-        type="submit"
-        disabled={pending}
-        aria-busy={pending}
-        className="btn-large disabled:cursor-wait disabled:opacity-70"
-      >
-        {pending ? (
-          <>
-            <span
-              aria-hidden="true"
-              className="mr-2 inline-block size-3.5 shrink-0 animate-spin rounded-full border-2 border-current border-r-transparent motion-reduce:animate-none"
-            />
-            Sending…
-          </>
-        ) : (
-          "Send reset link"
-        )}
-      </button>
+      <SubmitButton className="btn-large" pendingLabel="Sending…">
+        Send reset link
+      </SubmitButton>
     </form>
   );
 }
