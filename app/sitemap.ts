@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const FALLBACK_ORIGIN = "https://marketingtribe-momo-1021.netlify.app";
+const FALLBACK_ORIGIN = "http://localhost:3000";
 
 function getSiteOrigin() {
   const appUrl = process.env.APP_URL;
