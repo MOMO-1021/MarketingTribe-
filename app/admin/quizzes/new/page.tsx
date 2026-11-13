@@ -19,12 +19,12 @@ export default async function NewQuizPage({
       <Link href="/admin/quizzes" className="text-sm text-mute underline underline-offset-4">
         Back to quizzes
       </Link>
-      <h1 className="mt-3 font-serif text-3xl tracking-tight">Schedule a quiz</h1>
+      <h1 className="mt-3 font-serif text-3xl tracking-tight">Create a quiz</h1>
       <p className="mt-2 text-sm leading-relaxed text-mute">
         Enter questions only after reviewing their accuracy. Each question needs a verified answer,
         explanation, and source link.
       </p>
-      <QuizEditor hasError={e === "invalid"} />
+      <QuizEditor quiz={null} hasError={e === "invalid"} wasLocked={false} />
     </main>
   );
 }

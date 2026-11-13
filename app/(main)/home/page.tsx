@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
 import { CircleFeed } from "@/components/circle-feed";
 import { HomeQuizCard } from "@/components/home-quiz-card";
-import { getFeaturedQuizForMember, listPosts } from "@/lib/db";
+import { HomeQuizLeaderboard } from "@/components/home-quiz-leaderboard";
+import {
+  getFeaturedQuizForMember,
+  getQuizLeaderboard,
+  listPosts,
+  listQuizLeaderboardOptions,
+} from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Home" };
@@ -9,18 +15,26 @@ export const metadata: Metadata = { title: "Home" };
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ sort?: string; q?: string }>;
+  searchParams: Promise<{ sort?: string; q?: string; leaderboard?: string }>;
 }) {
   const user = await getCurrentUser();
   if (!user) return null;
   const params = await searchParams;
   const sort = params.sort === "top" ? "top" : "new";
   const query = params.q?.trim().slice(0, 80) || undefined;
-  const now = Date.now();
   const [posts, featuredQuiz] = await Promise.all([
     listPosts({ viewerId: user.id, sort, query }),
-    query ? Promise.resolve(null) : getFeaturedQuizForMember(user.id, now),
+    query ? Promise.resolve(null) : getFeaturedQuizForMember(user.id),
   ]);
+  const leaderboardOptions = query ? [] : await listQuizLeaderboardOptions();
+  const requestedLeaderboardId = Number(params.leaderboard);
+  const selectedLeaderboard =
+    leaderboardOptions.find((option) => option.id === requestedLeaderboardId) ??
+    leaderboardOptions[0] ??
+    null;
+  const leaderboardEntries = selectedLeaderboard
+    ? await getQuizLeaderboard(selectedLeaderboard.id)
+    : [];
   const search = new URLSearchParams();
   if (sort === "top") search.set("sort", "top");
   if (query) search.set("q", query);
@@ -28,7 +42,15 @@ export default async function HomePage({
 
   return (
     <>
-      {!query ? <HomeQuizCard quiz={featuredQuiz} now={now} /> : null}
+      {!query ? <HomeQuizCard quiz={featuredQuiz} /> : null}
+      {!query ? (
+        <HomeQuizLeaderboard
+          options={leaderboardOptions}
+          selectedQuiz={selectedLeaderboard}
+          entries={leaderboardEntries}
+          sort={sort}
+        />
+      ) : null}
       <CircleFeed
         initialHref={searchString ? `/home?${searchString}` : "/home"}
         initialFeed={{

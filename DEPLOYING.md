@@ -59,9 +59,9 @@ The script loads `DATABASE_URL` from `.env.local`. It aborts if the Neon databas
 
 ## Weekly quizzes
 
-After signing in to the private admin dashboard, open `/admin/quizzes` to create and schedule a quiz. Enter a learning objective and one or more single-answer questions; each question requires a reviewed correct answer, explanation, and source title/link. Members can find scheduled quizzes at `/quizzes`, submit once while a quiz is open, and then review the answers, explanations, and sources. Quiz times are displayed in India Standard Time.
+After signing in to the private admin dashboard, open `/admin/quizzes` to create, edit, or delete quizzes. Quizzes remain available at `/quizzes` until an admin deletes them. Members can submit each quiz once and review their answers, explanations, and sources afterward. The home page shows the latest quiz and a leaderboard, with quiz scores ordered from lowest to highest.
 
-Quiz tables and indexes are created automatically by the app's database initialization on its first request after deployment. No manual SQL is required.
+Each quiz needs a learning objective and one or more single-answer questions with a reviewed answer, explanation, and source title/link. Once anyone submits, question content is locked so previous scores remain valid; admins can still edit the title and objective. Deleting a quiz also removes its submissions and leaderboard scores. Quiz tables and indexes are created automatically by the app's database initialization on its first request after deployment. No manual SQL is required.
 
 ## Local development
 

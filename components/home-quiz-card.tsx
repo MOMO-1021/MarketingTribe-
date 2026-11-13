@@ -1,25 +1,18 @@
 import Link from "next/link";
 import type { MemberQuizSummary } from "@/lib/db";
-import { formatDateTime } from "@/lib/format";
 
-export function HomeQuizCard({ quiz, now }: { quiz: MemberQuizSummary | null; now: number }) {
-  const isOpen = quiz !== null && now >= quiz.opens_at && now < quiz.closes_at;
-  const isUpcoming = quiz !== null && now < quiz.opens_at;
+export function HomeQuizCard({ quiz }: { quiz: MemberQuizSummary | null }) {
   const href = quiz ? `/quizzes/${quiz.id}` : "/quizzes";
   const label = !quiz
     ? "Weekly learning"
     : quiz.has_submitted
       ? "Quiz completed"
-      : isOpen
-        ? "Open now"
-        : "Coming up";
+      : "Available anytime";
   const action = !quiz
     ? "Browse quizzes"
     : quiz.has_submitted
       ? "Review your answers"
-      : isOpen
-        ? "Take this week's quiz"
-        : "View upcoming quiz";
+      : "Take this quiz";
 
   return (
     <section aria-label="Weekly quiz" className="mb-6">
@@ -42,7 +35,7 @@ export function HomeQuizCard({ quiz, now }: { quiz: MemberQuizSummary | null; no
             <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink">
               {quiz
                 ? quiz.learning_objective
-                : "Objective-led marketing quizzes are published here. Check the schedule and come back when the next one opens."}
+                : "Objective-led, source-backed marketing quizzes live here. Check back when the next one is added."}
             </p>
           </div>
           <span
@@ -57,11 +50,7 @@ export function HomeQuizCard({ quiz, now }: { quiz: MemberQuizSummary | null; no
             {quiz
               ? quiz.has_submitted
                 ? `Your score: ${quiz.score}/${quiz.question_count}`
-                : isOpen
-                  ? `Closes ${formatDateTime(quiz.closes_at)} · ${quiz.question_count} questions`
-                  : isUpcoming
-                    ? `Opens ${formatDateTime(quiz.opens_at)} · ${quiz.question_count} questions`
-                    : `Closed · ${quiz.question_count} questions`
+                : `${quiz.question_count} questions · Available whenever you're ready`
               : "A short, source-backed way to keep learning together"}
           </p>
           <span className="text-sm font-medium text-clay group-hover:underline group-hover:underline-offset-4">
@@ -69,11 +58,6 @@ export function HomeQuizCard({ quiz, now }: { quiz: MemberQuizSummary | null; no
           </span>
         </div>
       </Link>
-      <p className="mt-2 text-right text-xs">
-        <Link href="/quizzes" className="text-mute underline underline-offset-4 hover:text-ink">
-          View all quizzes
-        </Link>
-      </p>
     </section>
   );
 }

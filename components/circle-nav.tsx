@@ -2,12 +2,13 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { CommunitySummary } from "@/lib/db";
 import { useCircleFeedStore } from "./circle-feed-provider";
 
 export function CircleNav({ circles }: { circles: CommunitySummary[] }) {
   const path = usePathname();
+  const router = useRouter();
   const { navigate, prefetchFeed, prefetchPeople } = useCircleFeedStore();
 
   return (
@@ -40,7 +41,12 @@ export function CircleNav({ circles }: { circles: CommunitySummary[] }) {
       >
         People
       </NavLink>
-      <NavLink href="/quizzes" active={path === "/quizzes" || path.startsWith("/quizzes/")}>
+      <NavLink
+        href="/quizzes"
+        active={path === "/quizzes" || path.startsWith("/quizzes/")}
+        navigate={(href) => router.push(href)}
+        onPrefetch={() => router.prefetch("/quizzes")}
+      >
         Weekly quizzes
       </NavLink>
     </nav>

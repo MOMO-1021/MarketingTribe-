@@ -24,7 +24,8 @@ export async function submitQuiz(formData: FormData) {
     answers[String(question.id)] = Number(raw);
   }
 
-  await saveQuizSubmission(quizId, user.id, answers, Date.now());
+  const saved = await saveQuizSubmission(quizId, user.id, answers, Date.now());
+  if (!saved) redirect(`/quizzes/${quizId}?e=retry`);
   revalidatePath("/quizzes");
   revalidatePath(`/quizzes/${quizId}`);
   redirect(`/quizzes/${quizId}`);

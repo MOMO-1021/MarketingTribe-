@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SubmitButton } from "@/components/submit-button";
 import { getQuizForMember } from "@/lib/db";
-import { formatDateTime } from "@/lib/format";
 import { submitQuiz } from "@/lib/quiz-actions";
 import { getCurrentUser } from "@/lib/session";
 
@@ -28,9 +27,6 @@ export default async function QuizPage({
   ]);
   if (!quiz) notFound();
 
-  const now = Date.now();
-  const isUpcoming = now < quiz.opens_at;
-  const isClosed = now >= quiz.closes_at;
   const isSubmitted = quiz.submitted_at !== null;
 
   return (
@@ -40,14 +36,11 @@ export default async function QuizPage({
       </Link>
       <header className="mt-4 border-b border-line pb-5">
         <p className="text-xs uppercase tracking-[0.14em] text-mute">
-          {isSubmitted ? "Quiz results" : isUpcoming ? "Upcoming quiz" : isClosed ? "Quiz closed" : "Weekly quiz"}
+          {isSubmitted ? "Quiz results" : "Available anytime"}
         </p>
         <h1 className="mt-2 font-serif text-3xl tracking-tight">{quiz.title}</h1>
         <p className="mt-4 text-xs uppercase tracking-wide text-mute">Learning objective</p>
         <p className="mt-1 text-sm leading-relaxed">{quiz.learning_objective}</p>
-        <p className="mt-3 text-xs text-mute">
-          {formatDateTime(quiz.opens_at)} – {formatDateTime(quiz.closes_at)}
-        </p>
       </header>
 
       {isSubmitted ? (
@@ -91,18 +84,18 @@ export default async function QuizPage({
             ))}
           </ol>
         </section>
-      ) : isUpcoming ? (
-        <p className="mt-6 text-sm text-mute">This quiz will be available when it opens.</p>
-      ) : isClosed ? (
-        <p className="mt-6 text-sm text-mute">
-          This quiz has closed. Answers and explanations are available to members who submitted it.
-        </p>
       ) : (
         <form action={submitQuiz} className="mt-6">
           <input type="hidden" name="quizId" value={quiz.id} />
           {e === "incomplete" ? (
             <p role="alert" className="mb-4 text-sm text-clay">
               Choose one answer for every question before submitting.
+            </p>
+          ) : null}
+          {e === "retry" ? (
+            <p role="alert" className="mb-4 text-sm text-clay">
+              This quiz changed before your answers were saved. Review the current questions and
+              submit again.
             </p>
           ) : null}
           <ol className="space-y-7">

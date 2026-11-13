@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createQuiz, type QuizQuestionInput } from "./db";
+import {
+  createQuiz,
+  deleteQuiz,
+  updateQuiz,
+  type QuizQuestionInput,
+} from "./db";
 import {
   checkAdminCredentials,
   clearAdminSession,
@@ -12,23 +17,6 @@ import {
 
 function text(value: unknown, max: number) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
-}
-
-function localDateTimeToTimestamp(value: string, offsetMinutes: number) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
-  if (!match) return null;
-  const [, year, month, day, hour, minute] = match.map(Number);
-  if (month < 1 || month > 12 || day < 1 || hour > 23 || minute > 59) return null;
-  const timestamp = Date.UTC(year, month - 1, day, hour, minute) + offsetMinutes * 60_000;
-  const date = new Date(timestamp - offsetMinutes * 60_000);
-  if (
-    date.getUTCFullYear() !== year ||
-    date.getUTCMonth() !== month - 1 ||
-    date.getUTCDate() !== day
-  ) {
-    return null;
-  }
-  return timestamp;
 }
 
 function parseQuizQuestions(value: FormDataEntryValue | null): QuizQuestionInput[] | null {
@@ -105,34 +93,10 @@ export async function createAdminQuiz(formData: FormData) {
 
   const title = text(formData.get("title"), 120);
   const learningObjective = text(formData.get("learningObjective"), 500);
-  const timezoneOffset = formData.get("timezoneOffset");
-  const offsetValue =
-    typeof timezoneOffset === "string" && /^-?\d+$/.test(timezoneOffset)
-      ? Number(timezoneOffset)
-      : Number.NaN;
-  const opensAtValue = formData.get("opensAt");
-  const closesAtValue = formData.get("closesAt");
-  const opensAt =
-    typeof opensAtValue === "string" &&
-    Number.isInteger(offsetValue) &&
-    offsetValue >= -840 &&
-    offsetValue <= 840
-      ? localDateTimeToTimestamp(opensAtValue, offsetValue)
-      : null;
-  const closesAt =
-    typeof closesAtValue === "string" &&
-    Number.isInteger(offsetValue) &&
-    offsetValue >= -840 &&
-    offsetValue <= 840
-      ? localDateTimeToTimestamp(closesAtValue, offsetValue)
-      : null;
   const questions = parseQuizQuestions(formData.get("questions"));
   if (
     title.length < 3 ||
     learningObjective.length < 10 ||
-    opensAt === null ||
-    closesAt === null ||
-    closesAt <= opensAt ||
     !questions
   ) {
     redirect("/admin/quizzes/new?e=invalid");
@@ -141,14 +105,63 @@ export async function createAdminQuiz(formData: FormData) {
   await createQuiz({
     title,
     learningObjective,
-    opensAt,
-    closesAt,
     createdAt: Date.now(),
     questions,
   });
   revalidatePath("/admin/quizzes");
   revalidatePath("/quizzes");
+  revalidatePath("/home");
   redirect("/admin/quizzes?created=1");
+}
+
+export async function updateAdminQuiz(formData: FormData) {
+  if (!(await hasAdminSession())) redirect("/admin/login");
+
+  const quizId = Number(formData.get("quizId"));
+  const title = text(formData.get("title"), 120);
+  const learningObjective = text(formData.get("learningObjective"), 500);
+  if (!Number.isSafeInteger(quizId) || quizId <= 0) redirect("/admin/quizzes");
+  const questions = parseQuizQuestions(formData.get("questions"));
+  if (
+    title.length < 3 ||
+    learningObjective.length < 10 ||
+    !questions
+  ) {
+    redirect(`/admin/quizzes/${quizId}/edit?e=invalid`);
+  }
+
+  const result = await updateQuiz({
+    id: quizId,
+    title,
+    learningObjective,
+    questions,
+  });
+  if (!result) redirect("/admin/quizzes");
+
+  revalidatePath("/admin/quizzes");
+  revalidatePath(`/admin/quizzes/${quizId}/edit`);
+  revalidatePath("/quizzes");
+  revalidatePath(`/quizzes/${quizId}`);
+  revalidatePath("/home");
+  redirect(
+    result === "questions-locked"
+      ? `/admin/quizzes/${quizId}/edit?updated=locked`
+      : "/admin/quizzes?updated=1",
+  );
+}
+
+export async function deleteAdminQuiz(formData: FormData) {
+  if (!(await hasAdminSession())) redirect("/admin/login");
+  const quizId = Number(formData.get("quizId"));
+  if (!Number.isSafeInteger(quizId) || quizId <= 0) redirect("/admin/quizzes");
+  if (formData.get("confirmDelete") !== "yes") redirect("/admin/quizzes?e=confirm");
+
+  if (!(await deleteQuiz(quizId))) redirect("/admin/quizzes?e=missing");
+  revalidatePath("/admin/quizzes");
+  revalidatePath("/quizzes");
+  revalidatePath(`/quizzes/${quizId}`);
+  revalidatePath("/home");
+  redirect("/admin/quizzes?deleted=1");
 }
 
 export async function adminLogout() {
