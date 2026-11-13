@@ -22,13 +22,20 @@ import {
   updateUser,
 } from "./db";
 import { clearSession, getCurrentUser, setSession } from "./session";
+import PostHogClient from "@/app/posthog";
 
 function clean(value: FormDataEntryValue | null, max: number) {
-  return String(value ?? "").trim().replace(/\s+/g, " ").slice(0, max);
+  return String(value ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, max);
 }
 
 function keepLines(value: FormDataEntryValue | null, max: number) {
-  return String(value ?? "").replace(/\r\n/g, "\n").trim().slice(0, max);
+  return String(value ?? "")
+    .replace(/\r\n/g, "\n")
+    .trim()
+    .slice(0, max);
 }
 
 async function requireUser() {
@@ -52,8 +59,10 @@ export async function signup(formData: FormData) {
 
   if (name.length < 2) redirect("/signup?e=name");
   if (!validEmail(email) || email === HOST_EMAIL) redirect("/signup?e=email");
-  if (password.length < 8 || password.length > 200) redirect("/signup?e=password");
-  if (!PRACTICES.includes(practice as (typeof PRACTICES)[number])) redirect("/signup?e=practice");
+  if (password.length < 8 || password.length > 200)
+    redirect("/signup?e=password");
+  if (!PRACTICES.includes(practice as (typeof PRACTICES)[number]))
+    redirect("/signup?e=practice");
   if (city.length < 2) redirect("/signup?e=city");
   if (confirm !== "on") redirect("/signup?e=confirm");
   if (await emailTaken(email)) redirect("/signup?e=taken");
@@ -65,7 +74,23 @@ export async function signup(formData: FormData) {
     practice,
     city,
   });
+
   await setSession(id);
+
+  // PostHog server-side tracking
+  try {
+    const posthog = PostHogClient();
+
+    posthog.capture({
+      distinctId: String(id),
+      event: "user_signed_up",
+    });
+
+    await posthog.shutdown();
+  } catch (error) {
+    console.error("PostHog tracking failed:", error);
+  }
+
   redirect("/welcome");
 }
 
@@ -73,7 +98,11 @@ export async function login(formData: FormData) {
   const email = clean(formData.get("email"), 120).toLowerCase();
   const password = String(formData.get("password") ?? "");
   const user = validEmail(email) ? await getUserByEmail(email) : null;
-  if (!user || user.email === HOST_EMAIL || !compareSync(password, user.password_hash)) {
+  if (
+    !user ||
+    user.email === HOST_EMAIL ||
+    !compareSync(password, user.password_hash)
+  ) {
     redirect("/login?e=credentials");
   }
   await setSession(user.id, user.session_version);
@@ -149,11 +178,13 @@ export async function editThread(formData: FormData) {
 
   const post = await getPost(postId, user.id);
   if (!post) redirect("/home");
-  if (post.author_id !== user.id) redirect(`/p/${postId}?threadError=forbidden`);
+  if (post.author_id !== user.id)
+    redirect(`/p/${postId}?threadError=forbidden`);
 
   const title = clean(formData.get("title"), 200);
   const rawBody = String(formData.get("body") ?? "");
-  if (title.length < 8 || title.length > 160) redirect(`/p/${postId}?threadError=title`);
+  if (title.length < 8 || title.length > 160)
+    redirect(`/p/${postId}?threadError=title`);
   if (rawBody.trim().length > 8000) redirect(`/p/${postId}?threadError=body`);
 
   await savePost(postId, user.id, title, keepLines(formData.get("body"), 8000));
@@ -171,8 +202,10 @@ export async function reply(formData: FormData) {
   if (
     !Number.isInteger(postId) ||
     postId <= 0 ||
-    (parentReplyId !== null && (!Number.isInteger(parentReplyId) || parentReplyId <= 0))
-  ) redirect("/home");
+    (parentReplyId !== null &&
+      (!Number.isInteger(parentReplyId) || parentReplyId <= 0))
+  )
+    redirect("/home");
   const replyTarget = parentReplyId === null ? "" : `&replyTo=${parentReplyId}`;
   if (!body) redirect(`/p/${postId}?e=comment${replyTarget}`);
   if (body.length > 4000) redirect(`/p/${postId}?e=commentlong${replyTarget}`);
@@ -186,11 +219,18 @@ export async function editReply(formData: FormData) {
   const user = await requireUser();
   const postId = Number(formData.get("postId"));
   const replyId = Number(formData.get("replyId"));
-  if (!Number.isInteger(postId) || postId <= 0 || !Number.isInteger(replyId) || replyId <= 0) {
+  if (
+    !Number.isInteger(postId) ||
+    postId <= 0 ||
+    !Number.isInteger(replyId) ||
+    replyId <= 0
+  ) {
     redirect("/home");
   }
 
-  const body = String(formData.get("body") ?? "").replace(/\r\n/g, "\n").trim();
+  const body = String(formData.get("body") ?? "")
+    .replace(/\r\n/g, "\n")
+    .trim();
   const errorPath = `/p/${postId}?replyId=${replyId}&replyError=`;
   if (!body) redirect(`${errorPath}comment`);
   if (body.length > 4000) redirect(`${errorPath}commentlong`);
@@ -221,7 +261,8 @@ export async function removeComment(formData: FormData) {
   const user = await requireUser();
   const postId = Number(formData.get("postId"));
   const replyId = Number(formData.get("replyId"));
-  if (!Number.isInteger(postId) || !Number.isInteger(replyId)) redirect("/home");
+  if (!Number.isInteger(postId) || !Number.isInteger(replyId))
+    redirect("/home");
   await removeReply(replyId, user.id);
   revalidatePath("/", "layout");
   redirect(`/p/${postId}`);
