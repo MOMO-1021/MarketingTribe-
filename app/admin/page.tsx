@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { adminLogout } from "@/lib/admin-actions";
 import { hasAdminSession } from "@/lib/admin-session";
@@ -21,6 +22,9 @@ export default async function AdminDashboardPage() {
           <p className="mt-2 text-sm text-mute">Member details and community activity.</p>
         </div>
         <div className="flex items-center gap-4">
+          <Link href="/admin/quizzes" className="text-sm underline decoration-line underline-offset-4">
+            Manage quizzes
+          </Link>
           <a href="/admin/export" className="text-sm underline decoration-line underline-offset-4">
             Download CSV
           </a>

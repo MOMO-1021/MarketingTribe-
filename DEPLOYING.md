@@ -57,6 +57,12 @@ The script loads `DATABASE_URL` from `.env.local`. It aborts if the Neon databas
 4. The reset-token table, rate-limit table, and user session-version/deletion columns are created automatically by the app's existing database initialization when the first request reaches the updated deployment. No manual SQL or data import is required.
 5. To test production delivery, deploy the update, open `/forgot-password`, and submit an email address belonging to an existing account. Check that mailbox and its spam folder, follow the link promptly, set a new password, and sign in with it. Confirm the former password no longer works and other accounts remain unaffected. The app deliberately shows the same request confirmation for known and unknown addresses.
 
+## Weekly quizzes
+
+After signing in to the private admin dashboard, open `/admin/quizzes` to create and schedule a quiz. Enter a learning objective and one or more single-answer questions; each question requires a reviewed correct answer, explanation, and source title/link. Members can find scheduled quizzes at `/quizzes`, submit once while a quiz is open, and then review the answers, explanations, and sources. Quiz times are displayed in India Standard Time.
+
+Quiz tables and indexes are created automatically by the app's database initialization on its first request after deployment. No manual SQL is required.
+
 ## Local development
 
 Set `DATABASE_URL` in `.env.local` to use Neon locally. Keep `.env.local` out of Git. The local SQLite database is not used by the Netlify deployment; use the one-time import above if its existing data should be retained.

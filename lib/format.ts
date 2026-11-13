@@ -22,6 +22,14 @@ export function formatDate(ts: number) {
   });
 }
 
+export function formatDateTime(ts: number) {
+  return new Date(ts).toLocaleString("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Asia/Kolkata",
+  });
+}
+
 export function excerpt(body: string, length = 180) {
   const flat = body.replace(/\s+/g, " ").trim();
   if (flat.length <= length) return flat;

@@ -40,6 +40,9 @@ export function CircleNav({ circles }: { circles: CommunitySummary[] }) {
       >
         People
       </NavLink>
+      <NavLink href="/quizzes" active={path === "/quizzes" || path.startsWith("/quizzes/")}>
+        Weekly quizzes
+      </NavLink>
     </nav>
   );
 }
