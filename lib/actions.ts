@@ -22,7 +22,7 @@ import {
   updateUser,
 } from "./db";
 import { clearSession, getCurrentUser, setSession } from "./session";
-import PostHogClient from "@/app/posthog";
+import { capturePostHogEvent } from "@/app/posthog";
 
 function clean(value: FormDataEntryValue | null, max: number) {
   return String(value ?? "")
@@ -77,19 +77,7 @@ export async function signup(formData: FormData) {
 
   await setSession(id);
 
-  // PostHog server-side tracking
-  try {
-    const posthog = PostHogClient();
-
-    posthog.capture({
-      distinctId: String(id),
-      event: "user_signed_up",
-    });
-
-    await posthog.shutdown();
-  } catch (error) {
-    console.error("PostHog tracking failed:", error);
-  }
+  await capturePostHogEvent(String(id), "user_signed_up");
 
   redirect("/welcome");
 }
@@ -106,6 +94,7 @@ export async function login(formData: FormData) {
     redirect("/login?e=credentials");
   }
   await setSession(user.id, user.session_version);
+  await capturePostHogEvent(String(user.id), "user_logged_in");
   redirect(user.welcome_read_at === null ? "/welcome" : "/home");
 }
 
@@ -167,6 +156,10 @@ export async function publishThread(formData: FormData) {
     body,
   });
   if (id === null) redirect("/new?e=community");
+  await capturePostHogEvent(String(user.id), "thread_created", {
+    thread_id: id,
+    community_slug: slug,
+  });
   revalidatePath("/", "layout");
   redirect(`/p/${id}`);
 }
@@ -211,6 +204,10 @@ export async function reply(formData: FormData) {
   if (body.length > 4000) redirect(`/p/${postId}?e=commentlong${replyTarget}`);
   const saved = await createReply(postId, user.id, body, parentReplyId);
   if (!saved) redirect(`/p/${postId}`);
+  await capturePostHogEvent(String(user.id), "reply_created", {
+    post_id: postId,
+    parent_reply_id: parentReplyId,
+  });
   revalidatePath("/", "layout");
   redirect(`/p/${postId}`);
 }

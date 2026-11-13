@@ -1,5 +1,6 @@
 import { getPostVote, getReplyVote, setPostVote, setReplyVote } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
+import { capturePostHogEvent } from "@/app/posthog";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -37,12 +38,26 @@ export async function POST(request: Request) {
 
   if (postId !== null) {
     await setPostVote(postId, user.id, voteValue);
-    return Response.json(await getPostVote(postId, user.id));
+    const result = await getPostVote(postId, user.id);
+    if (voteValue !== 0) {
+      await capturePostHogEvent(String(user.id), voteValue === 1 ? "upvote" : "downvote", {
+        content_type: "thread",
+        post_id: postId,
+      });
+    }
+    return Response.json(result);
   }
 
   if (replyId === null) {
     return Response.json({ error: "Invalid vote request." }, { status: 400 });
   }
   await setReplyVote(replyId, user.id, voteValue);
-  return Response.json(await getReplyVote(replyId, user.id));
+  const result = await getReplyVote(replyId, user.id);
+  if (voteValue !== 0) {
+    await capturePostHogEvent(String(user.id), voteValue === 1 ? "upvote" : "downvote", {
+      content_type: "reply",
+      reply_id: replyId,
+    });
+  }
+  return Response.json(result);
 }
