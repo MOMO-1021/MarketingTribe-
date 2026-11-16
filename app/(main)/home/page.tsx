@@ -15,12 +15,18 @@ export const metadata: Metadata = { title: "Home" };
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ sort?: string; q?: string; leaderboard?: string }>;
+  searchParams: Promise<{
+    sort?: string;
+    q?: string;
+    leaderboard?: string;
+    scoreOrder?: string;
+  }>;
 }) {
   const user = await getCurrentUser();
   if (!user) return null;
   const params = await searchParams;
   const sort = params.sort === "top" ? "top" : "new";
+  const scoreOrder = params.scoreOrder === "desc" ? "desc" : "asc";
   const query = params.q?.trim().slice(0, 80) || undefined;
   const [posts, featuredQuiz] = await Promise.all([
     listPosts({ viewerId: user.id, sort, query }),
@@ -33,7 +39,7 @@ export default async function HomePage({
     leaderboardOptions[0] ??
     null;
   const leaderboardEntries = selectedLeaderboard
-    ? await getQuizLeaderboard(selectedLeaderboard.id)
+    ? await getQuizLeaderboard(selectedLeaderboard.id, scoreOrder)
     : [];
   const search = new URLSearchParams();
   if (sort === "top") search.set("sort", "top");
@@ -49,6 +55,7 @@ export default async function HomePage({
           selectedQuiz={selectedLeaderboard}
           entries={leaderboardEntries}
           sort={sort}
+          scoreOrder={scoreOrder}
         />
       ) : null}
       <CircleFeed

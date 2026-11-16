@@ -6,12 +6,23 @@ export function HomeQuizLeaderboard({
   selectedQuiz,
   entries,
   sort,
+  scoreOrder,
 }: {
   options: QuizLeaderboardOption[];
   selectedQuiz: QuizLeaderboardOption | null;
   entries: QuizLeaderboardEntry[];
   sort: "new" | "top";
+  scoreOrder: "asc" | "desc";
 }) {
+  const nextScoreOrder = scoreOrder === "asc" ? "desc" : "asc";
+  const scoreOrderHref = selectedQuiz
+    ? `/home?${new URLSearchParams({
+        ...(sort === "top" ? { sort: "top" } : {}),
+        leaderboard: String(selectedQuiz.id),
+        scoreOrder: nextScoreOrder,
+      }).toString()}`
+    : "/home";
+
   return (
     <section
       aria-labelledby="quiz-leaderboard-title"
@@ -25,9 +36,13 @@ export function HomeQuizLeaderboard({
           </h2>
         </div>
         {selectedQuiz ? (
-          <span className="rounded-full bg-paper px-3 py-1 text-xs text-mute">
-            Lowest to highest
-          </span>
+          <Link
+            href={scoreOrderHref}
+            className="rounded-full bg-paper px-3 py-1 text-xs text-mute hover:text-ink"
+            aria-label={`Change score order to ${nextScoreOrder === "asc" ? "lowest to highest" : "highest to lowest"}`}
+          >
+            {scoreOrder === "asc" ? "Lowest to highest" : "Highest to lowest"}
+          </Link>
         ) : null}
       </div>
 
@@ -39,6 +54,9 @@ export function HomeQuizLeaderboard({
         <>
           <form action="/home" method="get" className="mt-4 flex flex-wrap items-end gap-3">
             {sort === "top" ? <input type="hidden" name="sort" value="top" /> : null}
+            {scoreOrder === "desc" ? (
+              <input type="hidden" name="scoreOrder" value="desc" />
+            ) : null}
             <label className="min-w-0 flex-1">
               <span className="label">Quiz</span>
               <select
@@ -65,7 +83,7 @@ export function HomeQuizLeaderboard({
                 <p className="py-3 text-sm text-mute">No submissions for this quiz yet.</p>
               ) : (
                 <ol
-                  aria-label={`${selectedQuiz.title} scores, lowest to highest`}
+                  aria-label={`${selectedQuiz.title} scores, ${scoreOrder === "asc" ? "lowest to highest" : "highest to lowest"}`}
                   className="divide-y divide-line"
                 >
                   {entries.map((entry, index) => (

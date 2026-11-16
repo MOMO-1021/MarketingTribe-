@@ -1345,7 +1345,10 @@ export async function listQuizLeaderboardOptions(): Promise<QuizLeaderboardOptio
   return result.rows.map((row) => ({ id: Number(row.id), title: String(row.title) }));
 }
 
-export async function getQuizLeaderboard(quizId: number): Promise<QuizLeaderboardEntry[]> {
+export async function getQuizLeaderboard(
+  quizId: number,
+  scoreOrder: "asc" | "desc" = "asc",
+): Promise<QuizLeaderboardEntry[]> {
   const result = await query<{
     profile_id: number | string | null;
     member_name: string;
@@ -1360,7 +1363,7 @@ export async function getQuizLeaderboard(quizId: number): Promise<QuizLeaderboar
      FROM quiz_submissions qs
      JOIN users u ON u.id = qs.user_id
      WHERE qs.quiz_id = $1
-     ORDER BY qs.score ASC, member_name ASC, qs.submitted_at ASC, qs.user_id ASC`,
+     ORDER BY qs.score ${scoreOrder.toUpperCase()}, member_name ASC, qs.submitted_at ASC, qs.user_id ASC`,
     [quizId],
   );
   return result.rows.map((row) => ({
