@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import type { QuizLeaderboardEntry, QuizLeaderboardOption } from "@/lib/db";
 
 export function HomeQuizLeaderboard({
@@ -14,14 +17,24 @@ export function HomeQuizLeaderboard({
   sort: "new" | "top";
   scoreOrder: "asc" | "desc";
 }) {
-  const nextScoreOrder = scoreOrder === "asc" ? "desc" : "asc";
-  const scoreOrderHref = selectedQuiz
-    ? `/home?${new URLSearchParams({
-        ...(sort === "top" ? { sort: "top" } : {}),
-        leaderboard: String(selectedQuiz.id),
-        scoreOrder: nextScoreOrder,
-      }).toString()}`
-    : "/home";
+  const [currentScoreOrder, setCurrentScoreOrder] = useState(scoreOrder);
+  const nextScoreOrder = currentScoreOrder === "asc" ? "desc" : "asc";
+  const orderedEntries = [...entries].sort((a, b) =>
+    currentScoreOrder === "asc" ? a.score - b.score : b.score - a.score,
+  );
+
+  function toggleScoreOrder() {
+    setCurrentScoreOrder(nextScoreOrder);
+
+    const params = new URLSearchParams(window.location.search);
+    if (nextScoreOrder === "asc") {
+      params.delete("scoreOrder");
+    } else {
+      params.set("scoreOrder", nextScoreOrder);
+    }
+    const query = params.toString();
+    window.history.replaceState(null, "", query ? `/home?${query}` : "/home");
+  }
 
   return (
     <section
@@ -36,13 +49,15 @@ export function HomeQuizLeaderboard({
           </h2>
         </div>
         {selectedQuiz ? (
-          <Link
-            href={scoreOrderHref}
+          <button
+            type="button"
+            onClick={toggleScoreOrder}
             className="rounded-full bg-paper px-3 py-1 text-xs text-mute hover:text-ink"
             aria-label={`Change score order to ${nextScoreOrder === "asc" ? "lowest to highest" : "highest to lowest"}`}
+            aria-pressed={currentScoreOrder === "desc"}
           >
-            {scoreOrder === "asc" ? "Lowest to highest" : "Highest to lowest"}
-          </Link>
+            {currentScoreOrder === "asc" ? "Lowest to highest" : "Highest to lowest"}
+          </button>
         ) : null}
       </div>
 
@@ -54,7 +69,7 @@ export function HomeQuizLeaderboard({
         <>
           <form action="/home" method="get" className="mt-4 flex flex-wrap items-end gap-3">
             {sort === "top" ? <input type="hidden" name="sort" value="top" /> : null}
-            {scoreOrder === "desc" ? (
+            {currentScoreOrder === "desc" ? (
               <input type="hidden" name="scoreOrder" value="desc" />
             ) : null}
             <label className="min-w-0 flex-1">
@@ -83,10 +98,10 @@ export function HomeQuizLeaderboard({
                 <p className="py-3 text-sm text-mute">No submissions for this quiz yet.</p>
               ) : (
                 <ol
-                  aria-label={`${selectedQuiz.title} scores, ${scoreOrder === "asc" ? "lowest to highest" : "highest to lowest"}`}
+                  aria-label={`${selectedQuiz.title} scores, ${currentScoreOrder === "asc" ? "lowest to highest" : "highest to lowest"}`}
                   className="divide-y divide-line"
                 >
-                  {entries.map((entry, index) => (
+                  {orderedEntries.map((entry, index) => (
                     <li
                       key={`${entry.profile_id ?? entry.member_name}-${index}`}
                       className="flex items-center justify-between gap-4 py-2.5 text-sm"
