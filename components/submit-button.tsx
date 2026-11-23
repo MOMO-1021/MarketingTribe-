@@ -1,18 +1,36 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
+import posthog from "posthog-js";
 
 export function SubmitButton({
   children,
   pendingLabel,
   className,
+  posthogPerson,
 }: {
   children: ReactNode;
   pendingLabel: string;
   className: string;
+  posthogPerson?: {
+    id: number;
+    email: string;
+    name: string;
+    practice: string;
+  };
 }) {
   const { pending } = useFormStatus();
+
+  useEffect(() => {
+    if (!posthogPerson) return;
+
+    posthog.identify(String(posthogPerson.id), {
+      email: posthogPerson.email,
+      name: posthogPerson.name,
+      practice: posthogPerson.practice,
+    });
+  }, [posthogPerson]);
 
   return (
     <button

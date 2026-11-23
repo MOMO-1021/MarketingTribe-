@@ -23,7 +23,11 @@ export default async function WelcomePage() {
         {post.body}
       </article>
       <form action={acknowledgeWelcome} className="mt-6">
-        <SubmitButton className="btn-large" pendingLabel="Opening the room…">
+        <SubmitButton
+          className="btn-large"
+          pendingLabel="Opening the room…"
+          posthogPerson={user}
+        >
           I’ve read this — enter the room
         </SubmitButton>
       </form>
