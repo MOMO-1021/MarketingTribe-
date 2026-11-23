@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MarketingTribe</string>
+    <string name="loading_message">Connecting to MarketingTribe&#8230;</string>
+    <string name="offline_title">You\'re offline</string>
+    <string name="offline_subtitle">Unable to connect to the MarketingTribe network. Please check your internet connection.</string>
+    <string name="retry_button">Try again</string>
+    <string name="choose_file">Select file</string>
+</resources>
