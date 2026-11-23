@@ -1,49 +1,17 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { logout } from "@/lib/actions";
 import { getStats, listCommunities, type PublicUser } from "@/lib/db";
 import { CircleNav } from "./circle-nav";
 import { CircleFeedProvider } from "./circle-feed-provider";
 import { WorkspaceContentBridge } from "./workspace-content-bridge";
-import { Wordmark } from "./wordmark";
+import { AppHeader } from "./app-header";
 
 export async function Shell({ user, children }: { user: PublicUser; children: ReactNode }) {
   const [circles, stats] = await Promise.all([listCommunities(), getStats()]);
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-10 border-b border-line bg-paper/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
-          <Wordmark href="/home" />
-          <form action="/home" className="min-w-0 flex-1 sm:max-w-xs">
-            <input
-              name="q"
-              placeholder="Search threads"
-              aria-label="Search threads"
-              className="field py-1.5"
-            />
-          </form>
-          <Link href="/new" className="btn">
-            <span className="sm:hidden">New</span>
-            <span className="hidden sm:inline">New thread</span>
-          </Link>
-          <Link href={`/u/${user.id}`} className="hidden text-sm sm:block">
-            <span className="font-medium">{user.name}</span>
-            <span className="text-mute"> · {user.city}</span>
-          </Link>
-          <Link href="/download" className="hidden text-sm text-mute hover:text-ink md:block">
-            Android app
-          </Link>
-          <Link href="/settings" className="text-sm text-mute hover:text-ink">
-            Settings
-          </Link>
-          <form action={logout}>
-            <button type="submit" className="text-sm text-mute hover:text-ink">
-              Sign out
-            </button>
-          </form>
-        </div>
-      </header>
+      <AppHeader user={user} circles={circles} />
       <CircleFeedProvider key={user.id}>
         <div className="mx-auto grid max-w-6xl grid-cols-1 gap-8 px-4 py-6 md:grid-cols-[190px_minmax(0,1fr)] lg:grid-cols-[190px_minmax(0,1fr)_230px]">
           <aside>
