@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Newsreader, Outfit } from "next/font/google";
 import "./globals.css";
@@ -21,6 +21,20 @@ export const metadata: Metadata = {
   title: { default: "MarketingTribe", template: "%s · MarketingTribe" },
   description: "A small, account-only room for marketers in India.",
   robots: { index: false, follow: false },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "MarketingTribe",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#f3f0e8",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover",
 };
 
 export const runtime = "nodejs";

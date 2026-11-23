@@ -49,6 +49,15 @@ export function CircleNav({ circles }: { circles: CommunitySummary[] }) {
       >
         Weekly quizzes
       </NavLink>
+      <div className="mx-1 hidden border-t border-line md:my-3 md:block" />
+      <NavLink
+        href="/download"
+        active={path === "/download"}
+        navigate={(href) => router.push(href)}
+        onPrefetch={() => router.prefetch("/download")}
+      >
+        Android app
+      </NavLink>
     </nav>
   );
 }

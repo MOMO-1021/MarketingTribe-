@@ -31,6 +31,9 @@ export default async function LandingPage() {
         <Link href="/login" className="text-sm text-ink underline decoration-line underline-offset-4 hover:decoration-ink">
           Sign in
         </Link>
+        <Link href="/download" className="text-sm text-mute underline decoration-line underline-offset-4 hover:text-ink">
+          Download Android app
+        </Link>
       </div>
       <Suspense
         fallback={

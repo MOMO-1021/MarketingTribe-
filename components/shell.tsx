@@ -31,6 +31,9 @@ export async function Shell({ user, children }: { user: PublicUser; children: Re
             <span className="font-medium">{user.name}</span>
             <span className="text-mute"> · {user.city}</span>
           </Link>
+          <Link href="/download" className="hidden text-sm text-mute hover:text-ink md:block">
+            Android app
+          </Link>
           <Link href="/settings" className="text-sm text-mute hover:text-ink">
             Settings
           </Link>
@@ -71,6 +74,18 @@ export async function Shell({ user, children }: { user: PublicUser; children: Re
               <li>Ask specific questions.</li>
               <li>Skip the pitch unless someone asked.</li>
             </ul>
+            <div className="mt-6 border-t border-line pt-4">
+              <p className="text-xs uppercase tracking-[0.14em] text-mute">On your phone</p>
+              <p className="mt-1 text-xs leading-relaxed text-mute">
+                Use your same account on mobile.
+              </p>
+              <Link
+                href="/download"
+                className="mt-2 inline-block text-xs font-medium text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
+              >
+                Get Android app →
+              </Link>
+            </div>
           </aside>
         </div>
       </CircleFeedProvider>
