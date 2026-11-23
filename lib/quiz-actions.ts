@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getQuizQuestionsForScoring, saveQuizSubmission } from "./db";
 import { getCurrentUser } from "./session";
+import { capturePostHogEvent } from "@/app/posthog";
+import { logPostHogAction } from "@/lib/posthog-logs";
 
 export async function submitQuiz(formData: FormData) {
   const user = await getCurrentUser();
@@ -26,6 +28,15 @@ export async function submitQuiz(formData: FormData) {
 
   const saved = await saveQuizSubmission(quizId, user.id, answers, Date.now());
   if (!saved) redirect(`/quizzes/${quizId}?e=retry`);
+  await capturePostHogEvent(String(user.id), "quiz_submitted", {
+    quiz_id: quizId,
+    question_count: questions.length,
+  });
+  logPostHogAction("Quiz submission completed", {
+    operation: "quiz_submitted",
+    quiz_id: quizId,
+    question_count: questions.length,
+  });
   revalidatePath("/quizzes");
   revalidatePath(`/quizzes/${quizId}`);
   redirect(`/quizzes/${quizId}`);

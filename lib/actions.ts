@@ -23,6 +23,7 @@ import {
 } from "./db";
 import { clearSession, getCurrentUser, setSession } from "./session";
 import { capturePostHogEvent } from "@/app/posthog";
+import { logPostHogAction } from "@/lib/posthog-logs";
 
 function clean(value: FormDataEntryValue | null, max: number) {
   return String(value ?? "")
@@ -102,6 +103,7 @@ export async function acknowledgeWelcome() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   await markWelcomeRead(user.id);
+  await capturePostHogEvent(String(user.id), "welcome_acknowledged");
   revalidatePath("/", "layout");
   redirect("/home");
 }
@@ -134,6 +136,10 @@ export async function deleteAccount(formData: FormData) {
   );
   if (!deleted) redirect("/settings?e=deletepassword");
 
+  await capturePostHogEvent(String(user.id), "account_deleted");
+  logPostHogAction("Account deletion completed", {
+    operation: "account_deleted",
+  });
   await clearSession();
   revalidatePath("/", "layout");
   redirect("/login?success=deleted");
@@ -160,6 +166,10 @@ export async function publishThread(formData: FormData) {
     thread_id: id,
     community_slug: slug,
   });
+  logPostHogAction("Thread creation completed", {
+    operation: "thread_created",
+    thread_id: id,
+  });
   revalidatePath("/", "layout");
   redirect(`/p/${id}`);
 }
@@ -181,6 +191,9 @@ export async function editThread(formData: FormData) {
   if (rawBody.trim().length > 8000) redirect(`/p/${postId}?threadError=body`);
 
   await savePost(postId, user.id, title, keepLines(formData.get("body"), 8000));
+  await capturePostHogEvent(String(user.id), "thread_updated", {
+    thread_id: postId,
+  });
   revalidatePath("/", "layout");
   redirect(`/p/${postId}`);
 }
@@ -235,6 +248,10 @@ export async function editReply(formData: FormData) {
     redirect(`${errorPath}replyforbidden`);
   }
 
+  await capturePostHogEvent(String(user.id), "reply_updated", {
+    post_id: postId,
+    reply_id: replyId,
+  });
   revalidatePath("/", "layout");
   redirect(`/p/${postId}`);
 }
@@ -250,6 +267,9 @@ export async function removeThread(formData: FormData) {
     if (post.author_id !== user.id) redirect(`/p/${postId}?e=forbidden`);
     redirect("/home");
   }
+  await capturePostHogEvent(String(user.id), "thread_deleted", {
+    thread_id: postId,
+  });
   revalidatePath("/", "layout");
   redirect("/home");
 }
@@ -260,7 +280,13 @@ export async function removeComment(formData: FormData) {
   const replyId = Number(formData.get("replyId"));
   if (!Number.isInteger(postId) || !Number.isInteger(replyId))
     redirect("/home");
-  await removeReply(replyId, user.id);
+  const removed = await removeReply(replyId, user.id);
+  if (removed) {
+    await capturePostHogEvent(String(user.id), "reply_deleted", {
+      post_id: postId,
+      reply_id: replyId,
+    });
+  }
   revalidatePath("/", "layout");
   redirect(`/p/${postId}`);
 }
@@ -278,6 +304,7 @@ export async function saveProfile(formData: FormData) {
     redirect(`/u/${user.id}?e=profile`);
   }
   await updateUser(user.id, { name, practice, city });
+  await capturePostHogEvent(String(user.id), "profile_updated");
   revalidatePath("/", "layout");
   redirect(`/u/${user.id}`);
 }

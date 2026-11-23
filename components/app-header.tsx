@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import posthog from "posthog-js";
 import { Wordmark } from "./wordmark";
 import type { CommunitySummary, PublicUser } from "@/lib/db";
 import { logout } from "@/lib/actions";
@@ -18,6 +19,18 @@ export function AppHeader({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [showCircles, setShowCircles] = useState(false);
   const pathname = usePathname();
+
+  useEffect(() => {
+    posthog.identify(String(user.id), {
+      email: user.email,
+      name: user.name,
+      practice: user.practice,
+    });
+  }, [user.email, user.id, user.name, user.practice]);
+
+  const handleLogout = () => {
+    posthog.reset();
+  };
 
   // Close drawer whenever pathname changes (user navigated)
   useEffect(() => {
@@ -98,7 +111,7 @@ export function AppHeader({
             <Link href="/settings" className="text-sm text-mute hover:text-ink whitespace-nowrap">
               Settings
             </Link>
-            <form action={logout}>
+            <form action={logout} onSubmit={handleLogout}>
               <button
                 type="submit"
                 className="text-sm text-mute hover:text-ink whitespace-nowrap"
@@ -363,7 +376,7 @@ export function AppHeader({
               <span>Account settings</span>
             </Link>
 
-            <form action={logout} className="pt-1">
+            <form action={logout} onSubmit={handleLogout} className="pt-1">
               <button
                 type="submit"
                 className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-ink/70 hover:bg-black/5 hover:text-ink transition"
@@ -377,7 +390,7 @@ export function AppHeader({
 
         {/* Drawer Footer with Sign Out (Lifted above Netlify badge & navigation bar) */}
         <div className="border-t border-line px-5 pt-3.5 pb-20 sm:pb-6 bg-paper">
-          <form action={logout}>
+          <form action={logout} onSubmit={handleLogout}>
             <button
               type="submit"
               className="flex w-full items-center justify-center gap-2 rounded-lg border border-line bg-white py-2.5 text-sm font-medium text-ink shadow-sm hover:bg-paper-dark transition"
