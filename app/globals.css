@@ -59,3 +59,11 @@ input[type="checkbox"] {
     @apply mb-1.5 block text-sm text-mute;
   }
 }
+
+/* Ensure Netlify floating badge stays below modals, drawers and overlays */
+.netlify-badge,
+[data-netlify-badge],
+div[class*="netlify-badge"],
+a[href*="netlify.com"][style*="fixed"] {
+  z-index: 30 !important;
+}

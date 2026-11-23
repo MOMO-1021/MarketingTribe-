@@ -176,7 +176,7 @@ export function AppHeader({
       {/* Mobile Drawer Backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity duration-200 md:hidden"
+          className="fixed inset-0 z-[99998] bg-black/50 backdrop-blur-sm transition-opacity duration-200 md:hidden"
           onClick={() => setIsOpen(false)}
           aria-hidden="true"
         />
@@ -184,7 +184,7 @@ export function AppHeader({
 
       {/* Mobile Drawer Panel */}
       <div
-        className={`fixed inset-y-0 right-0 z-50 flex w-full max-w-xs flex-col bg-paper shadow-2xl transition-transform duration-300 ease-in-out md:hidden ${
+        className={`fixed inset-y-0 right-0 z-[99999] flex w-full max-w-xs flex-col bg-paper shadow-2xl transition-transform duration-300 ease-in-out md:hidden ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
         role="dialog"
@@ -362,15 +362,25 @@ export function AppHeader({
               <span>⚙️</span>
               <span>Account settings</span>
             </Link>
+
+            <form action={logout} className="pt-1">
+              <button
+                type="submit"
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-ink/70 hover:bg-black/5 hover:text-ink transition"
+              >
+                <span>🚪</span>
+                <span>Sign out</span>
+              </button>
+            </form>
           </nav>
         </div>
 
-        {/* Drawer Footer with Sign Out */}
-        <div className="border-t border-line p-4 bg-paper">
+        {/* Drawer Footer with Sign Out (Lifted above Netlify badge & navigation bar) */}
+        <div className="border-t border-line px-5 pt-3.5 pb-20 sm:pb-6 bg-paper">
           <form action={logout}>
             <button
               type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-line bg-white/80 py-2.5 text-sm font-medium text-ink hover:bg-white transition"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-line bg-white py-2.5 text-sm font-medium text-ink shadow-sm hover:bg-paper-dark transition"
             >
               <svg className="h-4 w-4 text-mute" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
